@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="admin-container">
+    <h1>Admin Dashboard</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'Users')">Manage Users</button>
+        <button class="tab-btn" onclick="openTab(event, 'CreateUser')">Create User</button>
+    </div>
+    
+    <div id="Users" class="tab-content">
+        <h2>User Management</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user[0] }}</td>
+                        <td>{{ user[1] }}</td>
+                        <td>{% if user[2] == 1 %}Admin{% else %}User{% endif %}</td>
+                        <td>
+                            <form method="POST" action="/admin/delete_user/{{ user[0] }}" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                <button type="submit" class="delete-btn"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div id="CreateUser" class="tab-content" style="display:none;">
+        <h2>Create New User</h2>
+        <form method="POST" action="/admin/create_user" class="create-user-form">
+            <div class="form-group">
+                <label for="new-username">Username</label>
+                <input type="text" id="new-username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="new-password">Password</label>
+                <input type="password" id="new-password" name="password" required>
+            </div>
+            <div class="form-group checkbox">
+                <input type="checkbox" id="is-admin" name="is_admin">
+                <label for="is-admin">Admin privileges</label>
+            </div>
+            <button type="submit" class="btn">Create User</button>
+        </form>
+    </div>
+    
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabContent, tabButtons;
+            
+            tabContent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabContent.length; i++) {
+                tabContent[i].style.display = "none";
+            }
+            
+            tabButtons = document.getElementsByClassName("tab-btn");
+            for (i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].className = tabButtons[i].className.replace(" active", "");
+            }
+            
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+    </script>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="home-container">
+    <div class="header-section">
+        <h1>Your Favourites</h1>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search favorites...">
+            <button type="button" onclick="searchVideos()">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </div>
+
+    {% if videos %}
+    <div class="video-grid" id="videoGrid">
+        {% for video in videos %}
+        <div class="video-card" data-title="{{ video[2] }}" data-tags="{{ video[3] }}">
+            <a href="{{ url_for('view_video', msg_id=video[1]) }}" class="video-link">
+                <div class="thumbnail-container">
+                    <img src="{{ url_for('get_thumbnail', msg_id=video[1]) }}" alt="{{ video[2] }}" class="video-thumbnail">
+                    <div class="video-duration">{{ '%d:%02d' % (video[4]//60, video[4]%60) }}</div>
+                </div>
+                <div class="video-info">
+                    <h3 class="video-title">{{ video[2] }}</h3>
+                    <div class="video-meta">
+                        <div class="video-tags">
+                            {% if video[3] %}
+                                {% for tag in video[3].split(',') %}
+                                    <span class="tag">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="actions-container">
+                        <form action="{{ url_for('remove_favourite', med_id=video[0]) }}" method="post">
+                            <button type="submit" class="action-btn remove-btn">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="no-results" id="noResults">
+        <i class="fas fa-search"></i>
+        <p>No videos found matching your search.</p>
+    </div>
+    {% else %}
+    <div class="no-videos">
+        <i class="fas fa-heart-broken"></i>
+        <p>You don't have any favourites yet.</p>
+        <p>Browse videos and add them to your favourites!</p>
+        <a href="{{ url_for('home') }}" class="btn" style="max-width: 200px; margin-top: 15px;">
+            Browse Videos
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function searchVideos() {
+        const searchInput = document.getElementById('searchInput').value.toLowerCase();
+        const videoCards = document.querySelectorAll('.video-card');
+        const noResults = document.getElementById('noResults');
+        let foundMatch = false;
+        
+        videoCards.forEach(card => {
+            const title = card.getAttribute('data-title').toLowerCase();
+            const tags = card.getAttribute('data-tags').toLowerCase();
+            
+            if (title.includes(searchInput) || tags.includes(searchInput)) {
+                card.style.display = 'block';
+                foundMatch = true;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        if (!foundMatch && videoCards.length > 0) {
+            noResults.style.display = 'flex';
+        } else {
+            noResults.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

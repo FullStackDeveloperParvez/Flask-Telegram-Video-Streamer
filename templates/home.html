@@ -1,0 +1,84 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="home-container">
+    <div class="header-section">
+        <h1>Welcome, {{ username }}!</h1>
+        <div class="search-container">
+            <input type="text" id="videoSearch" placeholder="Search videos...">
+            <button id="searchBtn"><i class="fas fa-search"></i></button>
+        </div>
+    </div>
+
+    {% if videos %}
+    <div class="video-grid">
+        {% for video in videos %}
+        <div class="video-card" data-title="{{ video[2] }}" data-tags="{{ video[3] }}">
+            <a href="{{ url_for('view_video', msg_id=video[1]) }}" class="video-link">
+                <div class="thumbnail-container">
+                    <img src="{{ url_for('get_thumbnail', msg_id=video[1]) }}" alt="{{ video[2] }}" class="video-thumbnail">
+                    <span class="video-duration">{{ '%d:%02d' % (video[4] // 60, video[4] % 60) }}</span>
+                </div>
+                <div class="video-info">
+                    <h3 class="video-title">{{ video[2] }}</h3>
+                    <div class="video-meta">
+                        {% if video[3] %}
+                            <div class="video-tags">
+                                {% for tag in video[3].split(',') %}
+                                <span class="tag">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-videos">
+        <i class="fas fa-video-slash"></i>
+        <p>No videos available yet. Check back later!</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Search functionality
+        const searchInput = document.getElementById('videoSearch');
+        const searchBtn = document.getElementById('searchBtn');
+        const videoCards = document.querySelectorAll('.video-card');
+        
+        function performSearch() {
+            const query = searchInput.value.toLowerCase().trim();
+            let hasResults = false;
+            
+            videoCards.forEach(card => {
+                const title = card.dataset.title.toLowerCase();
+                const tags = card.dataset.tags ? card.dataset.tags.toLowerCase() : '';
+                
+                if (title.includes(query) || tags.includes(query) || query === '') {
+                    card.style.display = 'block';
+                    hasResults = true;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Show/hide no results message
+            const noResults = document.querySelector('.no-results');
+            if (noResults) {
+                noResults.style.display = hasResults ? 'none' : 'flex';
+            }
+        }
+        
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+    });
+</script>
+{% endblock %}

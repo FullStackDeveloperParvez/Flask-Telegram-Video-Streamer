@@ -1,0 +1,329 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="header-section">
+        <h1>Upload Video</h1>
+    </div>
+    
+    <div class="upload-form-container">
+        <form id="uploadForm" class="upload-form">
+            <div class="form-group">
+                <label for="videoFile">Video File (MP4, max 1GB)</label>
+                <div class="file-input-container" id="dropArea">
+                    <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                    <p>Drag and drop your video or click to browse</p>
+                    <input type="file" id="videoFile" name="video" accept="video/mp4" class="file-input">
+                    <div class="file-info" id="fileInfo"></div>
+                </div>
+                <div id="fileError" class="error-message"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="title">Video Title</label>
+                <textarea id="title" name="title" rows="2" placeholder="Enter video title" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="tags">Tags (comma separated)</label>
+                <textarea id="tags" name="tags" rows="2" placeholder="fun, awesome, cool"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Thumbnail</label>
+                <div class="thumbnail-preview-container">
+                    <div id="thumbnailPreview" class="thumbnail-preview">
+                        <i class="fas fa-image fa-3x"></i>
+                        <p>Thumbnail will appear here</p>
+                    </div>
+                    <div class="thumbnail-actions">
+                        <button type="button" id="regenerateThumb" class="action-btn" title="Regenerate thumbnail" disabled>
+                            <i class="fas fa-sync-alt"></i> Regenerate
+                        </button>
+                        <div class="custom-thumb-upload">
+                            <label for="thumbnailFile" class="action-btn">
+                                <i class="fas fa-upload"></i> Upload Custom
+                            </label>
+                            <input type="file" id="thumbnailFile" name="thumbnail" accept="image/*" class="file-input">
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="thumbnailData" name="thumbnail_data">
+            </div>
+            
+            <button type="submit" id="uploadBtn" class="btn" disabled>
+                <i class="fas fa-upload"></i> Upload Video
+            </button>
+        </form>
+    </div>
+    
+    <div class="upload-instructions">
+        <h3>Upload Instructions</h3>
+        <ul>
+            <li>Only MP4 video files are supported</li>
+            <li>Maximum file size is 1GB</li>
+            <li>Title is required for your video</li>
+            <li>Tags should be comma separated (e.g., funny, cat, pets)</li>
+            <li>You can generate a thumbnail automatically or upload your own</li>
+        </ul>
+    </div>
+</div>
+
+<div id="uploadProgress" class="upload-progress">
+    <div class="progress-container">
+        <h3>Uploading Video...</h3>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-percentage" id="progressPercentage">0%</div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('uploadForm');
+    const videoInput = document.getElementById('videoFile');
+    const thumbnailInput = document.getElementById('thumbnailFile');
+    const titleInput = document.getElementById('title');
+    const tagsInput = document.getElementById('tags');
+    const thumbnailPreview = document.getElementById('thumbnailPreview');
+    const thumbnailDataInput = document.getElementById('thumbnailData');
+    const regenerateBtn = document.getElementById('regenerateThumb');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileError = document.getElementById('fileError');
+    const dropArea = document.getElementById('dropArea');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercentage = document.getElementById('progressPercentage');
+    
+    let currentVideo = null;
+    
+    // Handle drag and drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        dropArea.classList.add('highlight');
+    }
+    
+    function unhighlight() {
+        dropArea.classList.remove('highlight');
+    }
+    
+    dropArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            videoInput.files = files;
+            handleVideoSelection(files[0]);
+        }
+    }
+    
+    // Handle video file selection
+    videoInput.addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            handleVideoSelection(this.files[0]);
+        }
+    });
+    
+    function handleVideoSelection(file) {
+        // Reset error
+        fileError.textContent = '';
+        
+        // Check file type
+        if (!file.type.startsWith('video/mp4')) {
+            fileError.textContent = 'Only MP4 videos are supported';
+            videoInput.value = '';
+            return;
+        }
+        
+        // Check file size (1GB)
+        if (file.size > 1024 * 1024 * 1024) {
+            fileError.textContent = 'File size exceeds 1GB limit';
+            videoInput.value = '';
+            return;
+        }
+        
+        // Store reference to current video
+        currentVideo = file;
+        
+        // Display file info
+        const fileSizeMB = Math.round(file.size / (1024 * 1024) * 10) / 10;
+        fileInfo.innerHTML = `<strong>${file.name}</strong> (${fileSizeMB} MB)`;
+        
+        // Auto-populate title from filename (without extension)
+        const fileName = file.name.replace(/\.[^/.]+$/, "");
+        titleInput.value = fileName;
+        
+        // Generate thumbnail
+        generateThumbnail(file);
+        
+        // Enable upload button
+        uploadBtn.disabled = false;
+    }
+    
+    // Handle custom thumbnail upload
+    thumbnailInput.addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            const file = this.files[0];
+            
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file for the thumbnail');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                thumbnailPreview.innerHTML = `<img src="${e.target.result}" alt="Thumbnail Preview">`;
+                thumbnailDataInput.value = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Generate thumbnail from video
+    function generateThumbnail(videoFile, timestamp = 'random') {
+        if (!videoFile) return;
+        
+        const formData = new FormData();
+        formData.append('video', videoFile);
+        formData.append('timestamp', timestamp);
+        
+        thumbnailPreview.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Generating thumbnail...</p></div>';
+        
+        fetch('/generate_thumbnail', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                thumbnailPreview.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle"></i><p>${data.error}</p></div>`;
+                return;
+            }
+            
+            thumbnailPreview.innerHTML = `<img src="${data.thumbnail}" alt="Video Thumbnail">`;
+            thumbnailDataInput.value = data.thumbnail;
+            regenerateBtn.disabled = false;
+        })
+        .catch(error => {
+            thumbnailPreview.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle"></i><p>Error generating thumbnail</p></div>`;
+            console.error('Error:', error);
+        });
+    }
+    
+    // Regenerate thumbnail
+    regenerateBtn.addEventListener('click', function() {
+        if (currentVideo) {
+            // Generate a random position between 10% and 80% of the video
+            const randomPos = Math.random() * 0.7 + 0.1;
+            generateThumbnail(currentVideo, randomPos.toString());
+        }
+    });
+    
+    // Handle form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate required fields
+        if (!currentVideo) {
+            alert('Please select a video file');
+            return;
+        }
+        
+        if (!titleInput.value.trim()) {
+            alert('Please enter a title for the video');
+            return;
+        }
+        
+        if (!thumbnailDataInput.value && !thumbnailInput.files.length) {
+            alert('Please generate or upload a thumbnail');
+            return;
+        }
+        
+        // Show upload progress
+        uploadProgress.style.display = 'flex';
+        
+        // Create FormData
+        const formData = new FormData();
+        formData.append('video', currentVideo);
+        formData.append('title', titleInput.value.trim());
+        formData.append('tags', tagsInput.value.trim());
+        
+        // Append thumbnail (either file or data URL)
+        if (thumbnailInput.files.length > 0) {
+            formData.append('thumbnail', thumbnailInput.files[0]);
+        } else if (thumbnailDataInput.value) {
+            formData.append('thumbnail_data', thumbnailDataInput.value);
+        }
+        
+        // Create and track a XMLHttpRequest
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/upload_video', true);
+        
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressPercentage.textContent = percentComplete + '%';
+            }
+        };
+        
+        xhr.onload = function() {
+            uploadProgress.style.display = 'none';
+            
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    // Reset form
+                    form.reset();
+                    fileInfo.innerHTML = '';
+                    thumbnailPreview.innerHTML = '<i class="fas fa-image fa-3x"></i><p>Thumbnail will appear here</p>';
+                    uploadBtn.disabled = true;
+                    regenerateBtn.disabled = true;
+                    currentVideo = null;
+                    thumbnailDataInput.value = '';
+                    
+                    // Show success message
+                    alert('Video uploaded successfully!');
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error'));
+                }
+            } else {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    alert('Error: ' + (response.error || 'Server error'));
+                } catch (e) {
+                    alert('Error uploading video');
+                }
+            }
+        };
+        
+        xhr.onerror = function() {
+            uploadProgress.style.display = 'none';
+            alert('Error uploading video');
+        };
+        
+        xhr.send(formData);
+    });
+});
+</script>
+{% endblock %}
