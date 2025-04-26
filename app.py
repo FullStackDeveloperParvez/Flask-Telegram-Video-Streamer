@@ -235,25 +235,26 @@ async def fetch_videos_from_channel():
 
             # Download thumbnail as binary data
             thumbnail_data = None
-            try:
-                if image_msg:
-                    # Use BytesIO to capture the image data directly
-                    thumbnail_buffer = io.BytesIO()
-                    await client.download_media(image_msg, thumbnail_buffer)
-                    thumbnail_data = thumbnail_buffer.getvalue()
+            if video_info.get('duration') > 300:
+                try:
+                    if image_msg:
+                        # Use BytesIO to capture the image data directly
+                        thumbnail_buffer = io.BytesIO()
+                        await client.download_media(image_msg, thumbnail_buffer)
+                        thumbnail_data = thumbnail_buffer.getvalue()
 
-                elif video_doc.thumbs:
-                    # Fallback to video's built-in thumbnail
-                    best_thumb = max(video_doc.thumbs, key=lambda t: getattr(t, 'w', 0) * getattr(t, 'h', 0))
-                    thumbnail_buffer = io.BytesIO()
-                    await client.download_media(
-                        message=video_msg,
-                        file=thumbnail_buffer,
-                        thumb=video_doc.thumbs.index(best_thumb)
-                    )
-                    thumbnail_data = thumbnail_buffer.getvalue()
-            except Exception as e:
-                print(f"Error downloading thumbnail for video {video_id}: {e}")
+                    elif video_doc.thumbs:
+                        # Fallback to video's built-in thumbnail
+                        best_thumb = max(video_doc.thumbs, key=lambda t: getattr(t, 'w', 0) * getattr(t, 'h', 0))
+                        thumbnail_buffer = io.BytesIO()
+                        await client.download_media(
+                            message=video_msg,
+                            file=thumbnail_buffer,
+                            thumb=video_doc.thumbs.index(best_thumb)
+                        )
+                        thumbnail_data = thumbnail_buffer.getvalue()
+                except Exception as e:
+                    print(f"Error downloading thumbnail for video {video_id}: {e}")
 
             # Insert data into SQLite
             try:
