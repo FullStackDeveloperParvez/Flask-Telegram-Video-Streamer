@@ -10,6 +10,7 @@ import io
 import os
 import sqlite3
 from dotenv import load_dotenv
+import random
 
 from flask import Flask, render_template, Response, request, jsonify, send_file, url_for
 from flask import redirect, flash, session
@@ -286,7 +287,7 @@ async def fetch_videos_from_channel():
     return videos
 
 
-def schedule_fetch(interval_seconds=604800):  # Default 1 week
+def schedule_fetch(interval_seconds=86400):  # Default 2 days
     """Schedule periodic fetches of videos from the channel"""
     while True:
         try:
@@ -360,8 +361,9 @@ def login():
 def home():
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, msg_id, title, tags, duration FROM med ORDER BY id DESC")
+    cursor.execute("SELECT id, msg_id, title, tags, duration FROM med WHERE duration > 300 ORDER BY id DESC")
     videos = cursor.fetchall()
+    random.shuffle(videos)
     conn.close()
 
     return render_template('home.html', username=session.get('username'), videos=videos)
@@ -546,6 +548,7 @@ def favourites():
         ORDER BY fav.id DESC
     """, (session.get('user_id'),))
     videos = cursor.fetchall()
+    random.shuffle(videos)
     conn.close()
 
     return render_template('favourites.html', username=session.get('username'), videos=videos)
@@ -835,7 +838,42 @@ def upload_video():
             
         return jsonify({'error': str(e)}), 500
 
-                                                                   
+
+@app.route('/shorts')
+@login_required
+def shorts():
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    # Select only videos less than 5 minutes (300 seconds)
+    cursor.execute("""
+        SELECT id, msg_id, title, tags, duration, mime_type
+        FROM med 
+        WHERE duration < 300 
+        ORDER BY id DESC
+    """)
+    short_videos = cursor.fetchall()
+    
+    # Convert to list of dictionaries for easier handling in template
+    videos = []
+    for video in short_videos:
+        # Check if in favorites
+        cursor.execute("SELECT id FROM fav WHERE usr_id = ? AND med_id = ?", 
+                      (session.get('user_id'), video[0]))
+        is_favorite = cursor.fetchone() is not None
+        
+        videos.append({
+            'id': video[0],
+            'msg_id': video[1],
+            'title': video[2],
+            'tags': video[3].split(',') if video[3] else [],
+            'duration': video[4],
+            'is_favorite': is_favorite
+        })
+    random.shuffle(videos)
+    conn.close()
+    return render_template('shorts.html', videos=videos)
+
+                                                           
 if __name__ == '__main__':
     # Initialize database
     init_db()

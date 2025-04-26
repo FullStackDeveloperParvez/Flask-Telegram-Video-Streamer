@@ -16,6 +16,7 @@
         <nav>
             <ul>
                 <li><a href="{{ url_for('home') }}"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="{{ url_for('shorts') }}"><i class="fas fa-bolt"></i> Shorts</a></li>
                 <li><a href="{{ url_for('favourites') }}"><i class="fas fa-star"></i> Favourites</a></li>
                 {% if session.get('is_admin') %}
                 <li><a href="{{ url_for('upload_page') }}"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Video</a></li>

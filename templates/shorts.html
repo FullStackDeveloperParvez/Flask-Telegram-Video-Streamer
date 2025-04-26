@@ -1,0 +1,350 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="shorts-container">
+    {% if videos %}
+        <div class="shorts-feed" id="shorts-feed">
+            {% for video in videos %}
+                <div class="shorts-item" data-msg-id="{{ video.msg_id }}" data-video-id="{{ video.id }}">
+                    <div class="video-container">
+                        <video class="shorts-video" src="/stream/{{ video.msg_id }}" 
+                            preload="none" playsinline loop>
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="video-overlay">
+                            <div class="video-controls">
+                                <div class="play-pause-btn">
+                                    <i class="fas fa-play"></i>
+                                </div>
+                                <div class="volume-btn">
+                                    <i class="fas fa-volume-up"></i>  
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="shorts-info">
+                        <h3 class="shorts-title">{{ video.title }}</h3>
+                        <div class="shorts-actions">
+                            {% if video.is_favorite %}
+                                <form action="{{ url_for('remove_favourite', med_id=video.id) }}" method="post" class="fav-form">
+                                    <button type="submit" class="action-icon favorited">
+                                        <i class="fas fa-heart"></i>
+                                    </button>
+                                </form>
+                            {% else %}
+                                <form action="{{ url_for('add_favourite', med_id=video.id) }}" method="post" class="fav-form">
+                                    <button type="submit" class="action-icon">
+                                        <i class="far fa-heart"></i>
+                                    </button>
+                                </form>
+                            {% endif %}
+                            <a href="{{ url_for('view_video', msg_id=video.msg_id) }}" class="action-icon">
+                                <i class="fas fa-expand"></i>
+                            </a>
+                        </div>
+                        {% if video.tags %}
+                            <div class="shorts-tags">
+                                {% for tag in video.tags %}
+                                    {% if tag|trim %}
+                                        <span class="tag">{{ tag|trim }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="loading-indicator">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="shorts-instructions">
+            <div class="swipe-up">
+                <i class="fas fa-chevron-up"></i>
+                <span>Swipe up for next video</span>
+            </div>
+        </div>
+    {% else %}
+        <div class="no-shorts">
+            <i class="fas fa-video-slash"></i>
+            <p>No short videos found</p>
+            <p>Short videos are less than 5 minutes in length</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all video elements
+        const shortsContainer = document.querySelector('.shorts-container');
+        const shortsFeed = document.getElementById('shorts-feed');
+        const shortsItems = document.querySelectorAll('.shorts-item');
+        const instructions = document.querySelector('.shorts-instructions');
+        
+        // Video related variables
+        let currentVideoIndex = 0;
+        let isPlaying = false;
+        let isMuted = false;
+        let touchStartY = 0;
+        let touchEndY = 0;
+        let lastWheelTime = 0;
+        let wheelLocked = false;
+        
+        // Hide instructions after 5 seconds
+        setTimeout(() => {
+            if (instructions) {
+                instructions.style.opacity = '0';
+            }
+        }, 5000);
+        
+        // Initialize shorts experience
+        if (shortsItems.length > 0) {
+            initializeShorts();
+        }
+        
+        function initializeShorts() {
+            // Setup the first video
+            setupVideo(currentVideoIndex);
+            
+            // Setup scroll event for feed
+            shortsFeed.addEventListener('scroll', handleScroll);
+            
+            // Setup touch events for swiping
+            shortsFeed.addEventListener('touchstart', handleTouchStart, false);
+            shortsFeed.addEventListener('touchmove', handleTouchMove, false);
+            shortsFeed.addEventListener('touchend', handleTouchEnd, false);
+            
+            // For desktop scroll - fixed event handler
+            window.addEventListener('wheel', handleWheel, { passive: false });
+        }
+        
+        function setupVideo(index) {
+            if (index < 0 || index >= shortsItems.length) return;
+            
+            const currentItem = shortsItems[index];
+            const video = currentItem.querySelector('.shorts-video');
+            const playPauseBtn = currentItem.querySelector('.play-pause-btn');
+            const volumeBtn = currentItem.querySelector('.volume-btn');
+            const loadingIndicator = currentItem.querySelector('.loading-indicator');
+            
+            // Show loading indicator
+            loadingIndicator.style.opacity = '1';
+            
+            // Setup video event listeners
+            video.addEventListener('loadeddata', function() {
+                loadingIndicator.style.opacity = '0';
+                // Auto play when loaded
+                playVideo(video);
+                updatePlayPauseButton(playPauseBtn, true);
+            });
+            
+            video.addEventListener('waiting', function() {
+                loadingIndicator.style.opacity = '1';
+            });
+            
+            video.addEventListener('playing', function() {
+                loadingIndicator.style.opacity = '0';
+            });
+            
+            video.addEventListener('error', function(e) {
+                console.error("Video error:", e);
+                loadingIndicator.style.opacity = '0';
+                playPauseBtn.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+            });
+            
+            // Setup control buttons
+            playPauseBtn.addEventListener('click', function() {
+                togglePlayPause(video, playPauseBtn);
+            });
+            
+            volumeBtn.addEventListener('click', function() {
+                toggleMute(video, volumeBtn);
+            });
+            
+            // Apply mute state
+            video.muted = isMuted;
+            updateVolumeButton(volumeBtn, isMuted);
+            
+            // Load the video
+            video.load();
+            
+            // Pause all other videos
+            pauseAllOtherVideos(index);
+        }
+        
+        function playVideo(video) {
+            console.log("Attempting to play video");
+            const playPromise = video.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    console.log("Video playing successfully");
+                    isPlaying = true;
+                }).catch(error => {
+                    console.error("Auto-play prevented:", error);
+                    isPlaying = false;
+                    // Show play button when autoplay fails
+                    const playPauseBtn = video.closest('.shorts-item').querySelector('.play-pause-btn');
+                    updatePlayPauseButton(playPauseBtn, false);
+                });
+            }
+        }
+        
+        function pauseVideo(video) {
+            video.pause();
+            isPlaying = false;
+        }
+        
+        function togglePlayPause(video, button) {
+            if (video.paused) {
+                playVideo(video);
+                updatePlayPauseButton(button, true);
+            } else {
+                pauseVideo(video);
+                updatePlayPauseButton(button, false);
+            }
+        }
+        
+        function toggleMute(video, button) {
+            isMuted = !isMuted;
+            video.muted = isMuted;
+            updateVolumeButton(button, isMuted);
+        }
+        
+        function updatePlayPauseButton(button, isPlaying) {
+            button.innerHTML = isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+        }
+        
+        function updateVolumeButton(button, isMuted) {
+            button.innerHTML = isMuted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
+        }
+        
+        function pauseAllOtherVideos(exceptIndex) {
+            shortsItems.forEach((item, index) => {
+                if (index !== exceptIndex) {
+                    const video = item.querySelector('.shorts-video');
+                    const playPauseBtn = item.querySelector('.play-pause-btn');
+                    if (video && !video.paused) {
+                        pauseVideo(video);
+                        updatePlayPauseButton(playPauseBtn, false);
+                    }
+                }
+            });
+        }
+        
+        function moveToVideo(index) {
+            if (index < 0 || index >= shortsItems.length) return;
+            
+            // Scroll to the video
+            shortsItems[index].scrollIntoView({ behavior: 'smooth' });
+            currentVideoIndex = index;
+            setupVideo(currentVideoIndex);
+        }
+        
+        function handleScroll() {
+            // Find which video is most visible in the viewport
+            let maxVisibleArea = 0;
+            let maxVisibleIndex = currentVideoIndex;
+            
+            shortsItems.forEach((item, index) => {
+                const rect = item.getBoundingClientRect();
+                const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+                const visibleArea = Math.max(0, visibleHeight / item.offsetHeight);
+                
+                if (visibleArea > maxVisibleArea) {
+                    maxVisibleArea = visibleArea;
+                    maxVisibleIndex = index;
+                }
+            });
+            
+            // If the most visible video has changed
+            if (maxVisibleIndex !== currentVideoIndex) {
+                currentVideoIndex = maxVisibleIndex;
+                setupVideo(currentVideoIndex);
+            }
+        }
+        
+        function handleTouchStart(event) {
+            touchStartY = event.touches[0].clientY;
+        }
+        
+        function handleTouchMove(event) {
+            touchEndY = event.touches[0].clientY;
+        }
+        
+        function handleTouchEnd() {
+            const diffY = touchStartY - touchEndY;
+            const threshold = 100; // Minimum distance for swipe detection
+            
+            if (Math.abs(diffY) > threshold) {
+                if (diffY > 0) {
+                    // Swipe up - go to next video
+                    if (currentVideoIndex < shortsItems.length - 1) {
+                        moveToVideo(currentVideoIndex + 1);
+                    }
+                } else {
+                    // Swipe down - go to previous video
+                    if (currentVideoIndex > 0) {
+                        moveToVideo(currentVideoIndex - 1);
+                    }
+                }
+            }
+        }
+        
+        function handleWheel(event) {
+            // Prevent default scrolling behavior
+            event.preventDefault();
+            
+            // Implement debouncing to prevent rapid scrolling
+            const now = Date.now();
+            if (wheelLocked) return;
+            
+            // Lock wheel events for a short period
+            wheelLocked = true;
+            setTimeout(() => {
+                wheelLocked = false;
+            }, 500); // 500ms cooldown between wheel actions
+            
+            if (event.deltaY > 0) {
+                // Scroll down - go to next video
+                if (currentVideoIndex < shortsItems.length - 1) {
+                    moveToVideo(currentVideoIndex + 1);
+                }
+            } else {
+                // Scroll up - go to previous video
+                if (currentVideoIndex > 0) {
+                    moveToVideo(currentVideoIndex - 1);
+                }
+            }
+        }
+        
+        // Add keyboard navigation
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'ArrowDown' || event.key === 'j') {
+                // Down arrow - go to next video
+                if (currentVideoIndex < shortsItems.length - 1) {
+                    moveToVideo(currentVideoIndex + 1);
+                }
+            } else if (event.key === 'ArrowUp' || event.key === 'k') {
+                // Up arrow - go to previous video
+                if (currentVideoIndex > 0) {
+                    moveToVideo(currentVideoIndex - 1);
+                }
+            } else if (event.key === ' ') {
+                // Space - toggle play/pause
+                const currentItem = shortsItems[currentVideoIndex];
+                const video = currentItem.querySelector('.shorts-video');
+                const playPauseBtn = currentItem.querySelector('.play-pause-btn');
+                togglePlayPause(video, playPauseBtn);
+                event.preventDefault();
+            } else if (event.key === 'm') {
+                // M - toggle mute
+                const currentItem = shortsItems[currentVideoIndex];
+                const video = currentItem.querySelector('.shorts-video');
+                const volumeBtn = currentItem.querySelector('.volume-btn');
+                toggleMute(video, volumeBtn);
+            }
+        });
+    });
+</script>
+{% endblock %}
