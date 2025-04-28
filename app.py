@@ -276,7 +276,7 @@ async def fetch_videos_from_channel():
 
                 # Add to return list (without the binary data for cleaner output)
                 videos.append(video_info)
-
+                time.sleep(10)
             except sqlite3.Error as e:
                 print(f"SQLite error: {e}")
 
@@ -874,7 +874,45 @@ def shorts():
     conn.close()
     return render_template('shorts.html', videos=videos)
 
-                                                           
+           
+@app.route('/api/videos/by_tag/<tag>')
+@login_required
+def get_videos_by_tag(tag):
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    
+    # Use LIKE with wildcards to match partial tags in the tags field
+    # This will match "tag" both as a standalone tag and as part of a comma-separated list
+    cursor.execute("""
+        SELECT id, msg_id, title, tags, duration 
+        FROM med 
+        WHERE tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags = ?
+        ORDER BY id DESC
+    """, (f"{tag},%", f"%, {tag},%", f"%, {tag}", tag))
+    
+    videos = cursor.fetchall()
+    
+    # Convert to JSON friendly format
+    result = []
+    for video in videos:
+        # Check if in favorites
+        cursor.execute("SELECT id FROM fav WHERE usr_id = ? AND med_id = ?", 
+                      (session.get('user_id'), video[0]))
+        is_favorite = cursor.fetchone() is not None
+        
+        result.append({
+            'id': video[0],
+            'msg_id': video[1],
+            'title': video[2],
+            'tags': video[3].split(',') if video[3] else [],
+            'duration': video[4],
+            'is_favorite': is_favorite
+        })
+    
+    conn.close()
+    return jsonify(result)
+
+                                                
 if __name__ == '__main__':
     # Initialize database
     init_db()

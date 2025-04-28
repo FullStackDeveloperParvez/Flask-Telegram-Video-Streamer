@@ -17,7 +17,7 @@
             {% if video[3] %}
             <div class="video-tags">
                 {% for tag in video[3].split(',') %}
-                <span class="tag">{{ tag.strip() }}</span>
+                <span class="tag clickable-tag" data-tag="{{ tag.strip() }}">{{ tag.strip() }}</span>
                 {% endfor %}
             </div>
             {% endif %}
@@ -44,6 +44,10 @@
     <div class="video-sidebar">
         <div class="sidebar-header">
             <h3>Suggested Videos</h3>
+            <div class="active-filters">
+                <span id="active-filter-label" style="display: none">Filtered by tag: <span id="active-filter"></span></span>
+                <button id="clear-filter" style="display: none">Clear Filter</button>
+            </div>
             <div class="sidebar-search">
                 <input type="text" id="sidebarSearch" placeholder="Search videos...">
                 <button id="sidebarSearchBtn"><i class="fas fa-search"></i></button>
@@ -114,6 +118,38 @@
     flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 15px;
+}
+
+.clickable-tag {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clickable-tag:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.active-filters {
+    margin: 10px 0;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.active-filters #clear-filter {
+    margin-left: 10px;
+    padding: 2px 8px;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.active-filters #clear-filter:hover {
+    background-color: var(--primary-color);
+    color: white;
 }
 
 .video-actions {
@@ -407,8 +443,27 @@ document.addEventListener('DOMContentLoaded', function() {
         contentElement.classList.remove('with-sidebar');
     }
     
-    // Fetch suggested videos via AJAX
-    fetchSuggestedVideos();
+    // Fetch suggested videos with the same tags as the current video
+    fetchSuggestedVideosWithSimilarTags();
+    
+    // Make tags clickable
+    const tags = document.querySelectorAll('.clickable-tag');
+    tags.forEach(tag => {
+        tag.addEventListener('click', function() {
+            const tagValue = this.dataset.tag;
+            document.getElementById('active-filter').textContent = tagValue;
+            document.getElementById('active-filter-label').style.display = 'inline';
+            document.getElementById('clear-filter').style.display = 'inline';
+            fetchVideosByTag(tagValue);
+        });
+    });
+    
+    // Clear filter button
+    document.getElementById('clear-filter').addEventListener('click', function() {
+        document.getElementById('active-filter-label').style.display = 'none';
+        document.getElementById('clear-filter').style.display = 'none';
+        fetchSuggestedVideosWithSimilarTags();
+    });
     
     // Search functionality for sidebar
     const sidebarSearch = document.getElementById('sidebarSearch');
@@ -437,6 +492,127 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function fetchSuggestedVideosWithSimilarTags() {
+    // Get current video tags
+    const tags = Array.from(document.querySelectorAll('.clickable-tag')).map(tag => tag.dataset.tag);
+    
+    if (tags.length === 0) {
+        // No tags on current video, fall back to general suggestions
+        fetchSuggestedVideos();
+        return;
+    }
+    
+    // Show loading spinner
+    const suggestedVideosContainer = document.querySelector('.suggested-videos');
+    suggestedVideosContainer.innerHTML = `
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading suggestions...</p>
+        </div>
+    `;
+    
+    // Create promises for each tag fetch
+    const fetchPromises = tags.map(tag => {
+        return fetch(`/api/videos/by_tag/${encodeURIComponent(tag)}`)
+            .then(response => response.json());
+    });
+    
+    // Fetch videos for all tags and merge results
+    Promise.all(fetchPromises)
+        .then(results => {
+            // Flatten and deduplicate results
+            let allVideos = [];
+            let videoIds = new Set();
+            
+            results.forEach(videos => {
+                videos.forEach(video => {
+                    // Skip current video and duplicates
+                    if (video.msg_id !== {{ video[1] }} && !videoIds.has(video.msg_id)) {
+                        videoIds.add(video.msg_id);
+                        allVideos.push(video);
+                    }
+                });
+            });
+            
+            // Display videos
+            displaySuggestedVideos(allVideos);
+        })
+        .catch(error => {
+            console.error('Error fetching videos by tags:', error);
+            showNoVideosMessage();
+        });
+}
+
+function fetchVideosByTag(tag) {
+    // Show loading spinner
+    const suggestedVideosContainer = document.querySelector('.suggested-videos');
+    suggestedVideosContainer.innerHTML = `
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading videos with tag "${tag}"...</p>
+        </div>
+    `;
+    
+    fetch(`/api/videos/by_tag/${encodeURIComponent(tag)}`)
+        .then(response => response.json())
+        .then(videos => {
+            // Filter out current video
+            const filteredVideos = videos.filter(video => video.msg_id !== {{ video[1] }});
+            displaySuggestedVideos(filteredVideos);
+        })
+        .catch(error => {
+            console.error('Error fetching videos by tag:', error);
+            showNoVideosMessage();
+        });
+}
+
+function displaySuggestedVideos(videos) {
+    const suggestedVideosContainer = document.querySelector('.suggested-videos');
+    
+    // Clear loading spinner
+    suggestedVideosContainer.innerHTML = '';
+    
+    if (videos.length > 0) {
+        videos.forEach(video => {
+            // Format duration
+            const minutes = Math.floor(video.duration / 60);
+            const seconds = video.duration % 60;
+            const formattedDuration = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+            
+            // Create tags HTML
+            let tagsHTML = '';
+            if (Array.isArray(video.tags)) {
+                video.tags.forEach(tag => {
+                    if (tag && tag.trim()) {
+                        tagsHTML += `<span class="tag">${tag.trim()}</span>`;
+                    }
+                });
+            }
+            
+            // Create suggested video element
+            const suggestedVideo = document.createElement('a');
+            suggestedVideo.href = `/video/${video.msg_id}`;
+            suggestedVideo.className = 'suggested-video';
+            suggestedVideo.dataset.tags = video.tags.join(',');
+            
+            suggestedVideo.innerHTML = `
+                <div class="suggested-video-thumbnail">
+                    <img src="/thumbnail/${video.msg_id}" alt="${video.title}">
+                    <span class="suggested-video-duration">${formattedDuration}</span>
+                </div>
+                <div class="suggested-video-info">
+                    <h4 class="suggested-video-title">${video.title}</h4>
+                    <div class="suggested-video-tags">${tagsHTML}</div>
+                </div>
+            `;
+            
+            suggestedVideosContainer.appendChild(suggestedVideo);
+        });
+    } else {
+        showNoVideosMessage();
+    }
+}
 
 function fetchSuggestedVideos() {
     // Get container ready
