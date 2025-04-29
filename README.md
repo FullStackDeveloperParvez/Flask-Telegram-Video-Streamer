@@ -83,16 +83,19 @@ Password: Welcome1
 
 🛠️ Configuration
 
+```
 Variable	Description	Example
 API_ID	Telegram API ID	123456
 API_HASH	Telegram API hash	abcdef1234567890
 SESSION_NAME	Name for Telethon session file	my_session
 CHANNEL_USERNAME	Telegram channel (with @)	@mychannel
 DATABASE_FILE	SQLite database filename	videos.db
+```
+
+
 📂 Project Structure
-arduino
-Copy
-Edit
+
+```
 ├── app.py
 ├── requirements.txt
 ├── .env.example
@@ -104,25 +107,24 @@ Edit
 └── static/
     ├── css/
     └── default-thumbnail.jpg
+```
 
 
 👩‍💻 Usage
 
+```
 Login with your credentials
-
 Browse fetched videos or jump to Shorts
-
 Click a video to stream or add to Favorites
-
 Use the Upload form to post new videos
+```
 
 
 🤝 Contributing
 
+```
 Fork the repo
-
 Create a feature branch (git checkout -b feat/YourFeature)
-
 Commit & push your changes
-
 Open a Pull Request
+```
