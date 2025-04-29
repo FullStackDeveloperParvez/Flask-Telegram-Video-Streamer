@@ -1,11 +1,11 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="home-container">
+<div class="search-results-container">
     <div class="header-section">
-        <h1>Welcome, {{ username }}!</h1>
+        <h1>Search Results for "{{ query }}"</h1>
         <div class="search-container">
-            <input type="text" id="videoSearch" placeholder="Search videos...">
+            <input type="text" id="videoSearch" placeholder="Search videos..." value="{{ query }}">
             <button id="searchBtn"><i class="fas fa-search"></i></button>
         </div>
     </div>
@@ -37,8 +37,8 @@
     </div>
     {% else %}
     <div class="no-videos">
-        <i class="fas fa-video-slash"></i>
-        <p>No videos available yet. Check back later!</p>
+        <i class="fas fa-search"></i>
+        <p>No videos found matching "{{ query }}". Try a different search term.</p>
     </div>
     {% endif %}
 </div>

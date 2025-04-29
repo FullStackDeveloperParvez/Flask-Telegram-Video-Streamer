@@ -912,7 +912,32 @@ def get_videos_by_tag(tag):
     conn.close()
     return jsonify(result)
 
-                                                
+
+@app.route('/search')
+@login_required
+def search():
+    query = request.args.get('q', '').strip()
+    
+    if not query:
+        return redirect(url_for('home'))
+    
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    
+    # Search for videos where title or tags contain the query (case insensitive)
+    cursor.execute("""
+        SELECT id, msg_id, title, tags, duration 
+        FROM med 
+        WHERE lower(title) LIKE ? OR lower(tags) LIKE ?
+        ORDER BY id DESC
+    """, (f'%{query.lower()}%', f'%{query.lower()}%'))
+    
+    videos = cursor.fetchall()
+    conn.close()
+    
+    return render_template('search_results.html', videos=videos, query=query)
+
+                                 
 if __name__ == '__main__':
     # Initialize database
     init_db()
