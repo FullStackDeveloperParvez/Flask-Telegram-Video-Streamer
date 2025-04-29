@@ -35,7 +35,6 @@
   - Auto-generate from a timestamp or upload custom thumbnail  
 - 🔍 **Search & Tag API**  
   - Full-text search on titles & tags  
-  - REST endpoint: `/api/videos/by_tag/<tag>`
 - 🧰 **Admin Tools**  
   - Create/delete users via web UI  
   - Secure admin-only routes
@@ -49,43 +48,38 @@
 ```bash
 git clone https://github.com/yourusername/flask-telegram-streamer.git
 cd flask-telegram-streamer
-2. Create & Configure .env
-Copy the example and fill in your credentials:
+```
 
-bash
-Copy
-Edit
-cp .env.example .env
-ini
-Copy
-Edit
+2. Create & Configure .env
+
+```
 API_ID=your_telegram_api_id
 API_HASH=your_telegram_api_hash
 SESSION_NAME=session   # e.g. "anon_session"
 CHANNEL_USERNAME=@your_channel
 DATABASE_FILE=app.db
+```
+
 3. Install Dependencies
-bash
-Copy
-Edit
+```
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
+
 4. Initialize & Run
-bash
-Copy
-Edit
+
+```
 # Create database & default admin user
 python app.py       # (Will auto-run init_db and start scheduler)
-
-# In another terminal (optional), tail logs:
-tail -f flask.log
 
 # Open in browser:
 http://localhost:5001
 Default Admin:
 Username: admin
 Password: Welcome1
+```
+
 
 🛠️ Configuration
 
@@ -110,7 +104,10 @@ Edit
 └── static/
     ├── css/
     └── default-thumbnail.jpg
+
+
 👩‍💻 Usage
+
 Login with your credentials
 
 Browse fetched videos or jump to Shorts
@@ -119,13 +116,9 @@ Click a video to stream or add to Favorites
 
 Use the Upload form to post new videos
 
-Explore JSON API for integration:
 
-swift
-Copy
-Edit
-GET /api/videos/by_tag/tutorial
 🤝 Contributing
+
 Fork the repo
 
 Create a feature branch (git checkout -b feat/YourFeature)
@@ -133,6 +126,3 @@ Create a feature branch (git checkout -b feat/YourFeature)
 Commit & push your changes
 
 Open a Pull Request
-
-📝 License
-Distributed under the MIT License. See LICENSE for details.
