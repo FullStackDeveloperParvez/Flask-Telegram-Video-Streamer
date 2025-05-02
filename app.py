@@ -11,6 +11,7 @@ import os
 import sqlite3
 from dotenv import load_dotenv
 import random
+import re
 
 from flask import Flask, render_template, Response, request, jsonify, send_file, url_for
 from flask import redirect, flash, session
@@ -145,7 +146,9 @@ async def fetch_videos_from_channel():
         messages = []
         async for msg in client.iter_messages(channel, reverse=True):
             messages.append(msg)
+            print(f'Fetched {len(messages)} messages from tg')
         
+        print(f'Fetched total {len(messages)} messages from tg')
         for msg in messages:
             # Check if the message contains media
             if not msg.media:
@@ -210,18 +213,25 @@ async def fetch_videos_from_channel():
 
             # Get video ID
             video_id = video_msg.id
-
+            
             # Check if video already exists in database
             cursor.execute("SELECT id FROM med WHERE msg_id = ?", (video_id,))
             if cursor.fetchone():
                 print(f"Video {video_id} already in database, skipping")
                 continue
+            
+            try:
+                video_name = video_msg.document.attributes[1].file_name
+                words = re.split(r'\W+', video_name)
+                cleaned = [word for word in words if word]
+                tags_from_title = ', '.join(cleaned)
+            except:
+                continue
 
             # Prepare video info for database
-            title = json_data.get('media_name', None) or getattr(video_msg, 'message',
-                                                                 f'Video {video_id}') or f'Video {video_id}'
-            tags = json_data.get('tags', "")
-
+            title = json_data.get('media_name', None) or f'{video_name}'
+            tags = json_data.get('tags', "") or f'{tags_from_title}'
+            
             video_info = {
                 'msg_id': video_id,
                 'file_size': video_doc.size,
