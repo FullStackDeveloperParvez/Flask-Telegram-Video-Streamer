@@ -144,12 +144,14 @@ async def fetch_videos_from_channel():
         channel = await client.get_entity(CHANNEL_USERNAME)
         videos = []
         messages = []
-        async for msg in client.iter_messages(channel, reverse=True):
+        async for msg in client.iter_messages(channel):
             messages.append(msg)
             print(f'Fetched {len(messages)} messages from tg')
         
-        print(f'Fetched total {len(messages)} messages from tg')
+        print(f'Starting message processing...')
         for msg in messages:
+            print(f'Processing message {msg.id}')
+            
             # Check if the message contains media
             if not msg.media:
                 continue
@@ -222,7 +224,7 @@ async def fetch_videos_from_channel():
             
             try:
                 video_name = video_msg.document.attributes[1].file_name
-                words = re.split(r'\W+', video_name)
+                words = re.split(r'[^a-zA-Z0-9]+', video_name)
                 cleaned = [word for word in words if word]
                 tags_from_title = ', '.join(cleaned)
             except:
@@ -283,10 +285,10 @@ async def fetch_videos_from_channel():
                     thumbnail_data
                 ))
                 conn.commit()
-
+                print(f'Inserted {title} to db')
                 # Add to return list (without the binary data for cleaner output)
                 videos.append(video_info)
-                time.sleep(10)
+                # time.sleep(10)
             except sqlite3.Error as e:
                 print(f"SQLite error: {e}")
 
