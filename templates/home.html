@@ -3,7 +3,7 @@
 {% block content %}
 <div class="home-container">
     <div class="header-section">
-        <h1>Welcome, {{ username }}!</h1>
+        <button class="shuffle-btn"><i class="fas fa-random"></i> Shuffle</button>
         <div class="search-container">
             <input type="text" id="videoSearch" placeholder="Search videos...">
             <button id="searchBtn"><i class="fas fa-search"></i></button>
@@ -35,6 +35,32 @@
         </div>
         {% endfor %}
     </div>
+    
+    <!-- Pagination -->
+    <div class="pagination">
+        {% if total_pages > 1 %}
+            {% if page > 1 %}
+                <a href="{{ url_for('home', page=page-1) }}" class="page-link">&laquo; Previous</a>
+            {% endif %}
+            
+            {% set start_page = [page - 2, 1]|max %}
+            {% set end_page = [start_page + 4, total_pages]|min %}
+            {% set start_page = [end_page - 4, 1]|max %}
+            
+            {% for i in range(start_page, end_page + 1) %}
+                {% if i == page %}
+                    <span class="current-page">{{ i }}</span>
+                {% else %}
+                    <a href="{{ url_for('home', page=i) }}" class="page-link">{{ i }}</a>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page < total_pages %}
+                <a href="{{ url_for('home', page=page+1) }}" class="page-link">Next &raquo;</a>
+            {% endif %}
+        {% endif %}
+    </div>
+    
     {% else %}
     <div class="no-videos">
         <i class="fas fa-video-slash"></i>
@@ -61,6 +87,12 @@
             if (e.key === 'Enter') {
                 performSearch();
             }
+        });
+
+        // Shuffle button functionality
+        const shuffleBtn = document.querySelector('.shuffle-btn');
+        shuffleBtn.addEventListener('click', function() {
+            window.location.href = "{{ url_for('home', page=page, refresh=1) }}";
         });
     });
 </script>

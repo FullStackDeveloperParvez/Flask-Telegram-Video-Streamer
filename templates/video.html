@@ -577,8 +577,8 @@ function displaySuggestedVideos(videos) {
         videos.forEach(video => {
             // Format duration
             const minutes = Math.floor(video.duration / 60);
-            const seconds = video.duration % 60;
-            const formattedDuration = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+            const seconds = Math.floor(video.duration % 60);
+            const formattedDuration = `${minutes}:${seconds}`;
             
             // Create tags HTML
             let tagsHTML = '';

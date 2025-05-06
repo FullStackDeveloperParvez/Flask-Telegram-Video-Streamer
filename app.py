@@ -372,14 +372,78 @@ def login():
 @app.route('/home')
 @login_required
 def home():
+    page = request.args.get('page', 1, type=int)
+    refresh = request.args.get('refresh', 0, type=int)
+    per_page = 100  # Videos per page
+    
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
+    
+    # Get total count of videos
+    cursor.execute("SELECT COUNT(*) FROM med WHERE duration > 300")
+    total_videos = cursor.fetchone()[0]
+    
+    # Calculate total pages
+    total_pages = (total_videos + per_page - 1) // per_page  # Ceiling division
+    
+    # Ensure page is within valid range
+    if page < 1:
+        page = 1
+    elif page > total_pages and total_pages > 0:
+        page = total_pages
+    
+    # Get all videos to shuffle
     cursor.execute("SELECT id, msg_id, title, tags, duration FROM med WHERE duration > 300 ORDER BY id DESC")
-    videos = cursor.fetchall()
-    random.shuffle(videos)
+    all_videos = cursor.fetchall()
+    
+    # Use session to store shuffled video IDs
+    session_key = f'shuffled_videos_{refresh}'
+    
+    # Check if we should force a new shuffle
+    if refresh or session_key not in session:
+        # Shuffle the videos
+        random.shuffle(all_videos)
+        # Store just the IDs to minimize session size
+        video_ids = [video[0] for video in all_videos]
+        session[session_key] = video_ids
+    
+    # Get the video IDs for the current shuffled order
+    shuffled_ids = session.get(session_key, [])
+    
+    # Prepare the query to get the specific videos in the shuffled order for this page
+    if shuffled_ids:
+        # Calculate the slice for this page
+        start_idx = (page - 1) * per_page
+        end_idx = min(start_idx + per_page, len(shuffled_ids))
+        
+        # Get the subset of IDs for this page
+        page_ids = shuffled_ids[start_idx:end_idx]
+        
+        if page_ids:
+            # Convert list to comma-separated string for SQL IN clause
+            ids_str = ','.join('?' for _ in page_ids)
+            
+            # Get the actual videos in the shuffled order
+            cursor.execute(f"""
+                SELECT id, msg_id, title, tags, duration 
+                FROM med 
+                WHERE id IN ({ids_str})
+                ORDER BY CASE id {' '.join([f'WHEN ? THEN {i}' for i in range(len(page_ids))])} END
+            """, page_ids + page_ids)
+            
+            videos = cursor.fetchall()
+        else:
+            videos = []
+    else:
+        videos = []
+    
     conn.close()
 
-    return render_template('home.html', username=session.get('username'), videos=videos)
+    return render_template('home.html', 
+                           username=session.get('username'), 
+                           videos=videos, 
+                           page=page, 
+                           total_pages=total_pages)
 
 
 @app.route('/admin')
@@ -898,10 +962,12 @@ def get_videos_by_tag(tag):
     cursor.execute("""
         SELECT id, msg_id, title, tags, duration 
         FROM med 
-        WHERE tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags = ?
+        WHERE (tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags = ?)
+        AND thumbnail IS NOT NULL
         ORDER BY id DESC
+        LIMIT 10
     """, (f"{tag},%", f"%, {tag},%", f"%, {tag}", tag))
-    
+
     videos = cursor.fetchall()
     
     # Convert to JSON friendly format
@@ -929,6 +995,8 @@ def get_videos_by_tag(tag):
 @login_required
 def search():
     query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 100  # Videos per page
     
     if not query:
         return redirect(url_for('home'))
@@ -936,18 +1004,43 @@ def search():
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     
+    # Get total count of matching videos
+    cursor.execute("""
+        SELECT COUNT(*) 
+        FROM med 
+        WHERE lower(title) LIKE ? OR lower(tags) LIKE ?
+    """, (f'%{query.lower()}%', f'%{query.lower()}%'))
+    total_videos = cursor.fetchone()[0]
+    
+    # Calculate total pages
+    total_pages = (total_videos + per_page - 1) // per_page  # Ceiling division
+    
+    # Ensure page is within valid range
+    if page < 1:
+        page = 1
+    elif page > total_pages and total_pages > 0:
+        page = total_pages
+    
+    # Calculate offset for pagination
+    offset = (page - 1) * per_page
+    
     # Search for videos where title or tags contain the query (case insensitive)
     cursor.execute("""
         SELECT id, msg_id, title, tags, duration 
         FROM med 
         WHERE lower(title) LIKE ? OR lower(tags) LIKE ?
         ORDER BY id DESC
-    """, (f'%{query.lower()}%', f'%{query.lower()}%'))
+        LIMIT ? OFFSET ?
+    """, (f'%{query.lower()}%', f'%{query.lower()}%', per_page, offset))
     
     videos = cursor.fetchall()
     conn.close()
     
-    return render_template('search_results.html', videos=videos, query=query)
+    return render_template('search_results.html', 
+                          videos=videos, 
+                          query=query, 
+                          page=page, 
+                          total_pages=total_pages)
 
                                  
 if __name__ == '__main__':
