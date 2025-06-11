@@ -777,7 +777,7 @@ def generate_thumbnail():
     
 
 @app.route('/upload_video', methods=['POST'])
-@login_required
+# @login_required
 def upload_video():
     if 'video' not in request.files:
         return jsonify({'error': 'No video file uploaded'}), 400
