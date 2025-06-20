@@ -1,6 +1,142 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<style>
+    /* Favourites Page Specific Styles */
+    .home-container {
+        max-width: 1600px;
+        margin: 20px auto;
+        padding: 0 20px;
+    }
+
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .header-section h1 {
+        color: var(--primary-color);
+        font-size: 2.5em;
+        margin: 0;
+    }
+
+    .actions-container {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        width: 100%;
+        margin-top: 15px;
+    }
+
+    .action-btn {
+        background-color: var(--error-color);
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.3s, transform 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .action-btn:hover {
+        background-color: #c82333; /* Darker red */
+        transform: translateY(-2px);
+    }
+
+    .remove-btn i {
+        margin-right: 5px;
+    }
+
+    /* Override general video-card styles for favourites page specific actions */
+    .video-card .video-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding-bottom: 10px; /* Adjust padding to make space for buttons */
+    }
+
+    /* Video card specific styles to ensure proper thumbnail display and tag spacing */
+    .video-card .thumbnail-container {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        overflow: hidden;
+        background-color: black; /* Added to show full thumbnail with letterboxing/pillarboxing */
+    }
+
+    .video-card .video-thumbnail {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* Changed from 'cover' to 'contain' to ensure full thumbnail is visible */
+    }
+
+    .video-card .video-tags {
+        display: flex; /* Ensures flex behavior for wrapping */
+        flex-wrap: wrap; /* Allows tags to wrap to the next line */
+        gap: 8px; /* Adds spacing between tags, even when they wrap */
+    }
+
+    .video-card .tag {
+        background-color: var(--secondary-color);
+        color: var(--background-color);
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+        white-space: nowrap;
+        transition: background-color 0.3s;
+    }
+
+    .video-card .tag:hover {
+        background-color: var(--primary-light-color);
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .header-section {
+            flex-direction: column;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+
+        .header-section h1 {
+            font-size: 2em;
+        }
+        
+        .search-container {
+            width: 100%;
+            max-width: none;
+        }
+
+        .actions-container {
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            padding: 7px 12px;
+            font-size: 0.85em;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .home-container {
+            padding: 0 10px;
+        }
+    }
+</style>
 <div class="home-container">
     <div class="header-section">
         <h1>Your Favourites</h1>
@@ -32,19 +168,19 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="actions-container">
-                        <form action="{{ url_for('remove_favourite', med_id=video[0]) }}" method="post">
-                            <button type="submit" class="action-btn remove-btn">
-                                <i class="fas fa-trash"></i> Remove
-                            </button>
-                        </form>
-                    </div>
                 </div>
             </a>
+            <div class="actions-container">
+                <form action="{{ url_for('remove_favourite', med_id=video[0]) }}" method="post" onsubmit="return showConfirmModal(this, 'Are you sure you want to remove this video from your favorites?');">
+                    <button type="submit" class="action-btn remove-btn">
+                        <i class="fas fa-trash"></i> Remove
+                    </button>
+                </form>
+            </div>
         </div>
         {% endfor %}
     </div>
-    <div class="no-results" id="noResults">
+    <div class="no-results" id="noResults" style="display: none;">
         <i class="fas fa-search"></i>
         <p>No videos found matching your search.</p>
     </div>
@@ -60,7 +196,21 @@
     {% endif %}
 </div>
 
+<!-- Custom Confirmation Modal -->
+<div id="confirmModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal-btn">&times;</span>
+        <p id="confirmMessage"></p>
+        <div class="modal-actions">
+            <button id="modalConfirmBtn" class="btn">Confirm</button>
+            <button id="modalCancelBtn" class="btn cancel-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <script>
+    let currentFormToSubmit = null;
+
     function searchVideos() {
         const searchInput = document.getElementById('searchInput').value.toLowerCase();
         const videoCards = document.querySelectorAll('.video-card');
@@ -72,7 +222,7 @@
             const tags = card.getAttribute('data-tags').toLowerCase();
             
             if (title.includes(searchInput) || tags.includes(searchInput)) {
-                card.style.display = 'block';
+                card.style.display = 'flex'; // Changed to flex as video-card is flex
                 foundMatch = true;
             } else {
                 card.style.display = 'none';
@@ -85,5 +235,116 @@
             noResults.style.display = 'none';
         }
     }
+
+    // Custom Confirmation Modal Logic
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+    const modalCancelBtn = document.getElementById('modalCancelBtn');
+    const closeModalBtn = document.querySelector('.close-modal-btn');
+
+    function showConfirmModal(form, message) {
+        currentFormToSubmit = form;
+        confirmMessage.textContent = message;
+        confirmModal.style.display = 'flex'; // Use flex for centering, and now controlled by JS
+        return false; // Prevent default form submission
+    }
+
+    modalConfirmBtn.onclick = function() {
+        if (currentFormToSubmit) {
+            currentFormToSubmit.submit();
+        }
+        confirmModal.style.display = 'none';
+    };
+
+    modalCancelBtn.onclick = function() {
+        confirmModal.style.display = 'none';
+        currentFormToSubmit = null;
+    };
+
+    closeModalBtn.onclick = function() {
+        confirmModal.style.display = 'none';
+        currentFormToSubmit = null;
+    };
+
+    window.onclick = function(event) {
+        if (event.target == confirmModal) {
+            confirmModal.style.display = 'none';
+            currentFormToSubmit = null;
+        }
+    };
 </script>
+<style>
+    /* Modal Styles (for custom alert/confirm) */
+    .modal {
+        display: none; /* Hidden by default, will be set to 'flex' by JS when needed */
+        position: fixed; /* Stay in place */
+        z-index: 1001; /* Sit on top */
+        left: 0;
+        top: 0;
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        overflow: auto; /* Enable scroll if needed */
+        background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+        /* Removed display: flex; from here */
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background-color: var(--light-bg-color);
+        margin: auto;
+        padding: 30px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 5px 15px var(--hover-shadow-color);
+        position: relative;
+        text-align: center;
+        color: var(--text-color);
+    }
+
+    .close-modal-btn {
+        color: var(--text-color);
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 30px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.3s;
+    }
+
+    .close-modal-btn:hover,
+    .close-modal-btn:focus {
+        color: var(--primary-color);
+        text-decoration: none;
+    }
+
+    .modal-content p {
+        margin-bottom: 25px;
+        font-size: 1.1em;
+        line-height: 1.5;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .modal-actions .btn {
+        min-width: 120px;
+    }
+
+    .modal-actions .cancel-btn {
+        background-color: #6c757d; /* Grey for cancel */
+    }
+
+    .modal-actions .cancel-btn:hover {
+        background-color: #5a6268;
+    }
+</style>
 {% endblock %}

@@ -1,6 +1,347 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<style>
+    /* Upload Page Specific Styles */
+    .upload-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: var(--light-bg-color);
+        border-radius: 12px;
+        box-shadow: 0 4px 15px var(--shadow-color);
+    }
+
+    .upload-container .header-section h1 {
+        color: var(--primary-color);
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 2.5em;
+    }
+
+    .upload-form-container {
+        margin-bottom: 30px;
+    }
+
+    .file-input-container {
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.3s, background-color 0.3s;
+        position: relative;
+        overflow: hidden;
+        background-color: var(--background-color);
+    }
+
+    .file-input-container.highlight {
+        border-color: var(--primary-color);
+        background-color: rgba(255, 140, 0, 0.1);
+    }
+
+    .file-input-container i {
+        font-size: 60px;
+        color: var(--primary-light-color);
+        margin-bottom: 15px;
+    }
+
+    .file-input-container p {
+        color: var(--text-color);
+        font-size: 1.1em;
+        margin: 0;
+    }
+
+    .file-input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .file-info {
+        margin-top: 15px;
+        font-weight: bold;
+        color: var(--accent-text-color);
+    }
+
+    textarea {
+        resize: vertical;
+    }
+
+    .thumbnail-preview-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+        background-color: var(--background-color);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+    }
+
+    .thumbnail-preview {
+        width: 100%;
+        max-width: 320px; /* Standard thumbnail width for 16:9 */
+        height: 180px; /* Standard thumbnail height for 16:9 */
+        background-color: var(--input-bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        color: var(--text-color);
+        font-size: 0.9em;
+        position: relative;
+    }
+
+    .thumbnail-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .thumbnail-preview i {
+        font-size: 50px;
+        color: var(--primary-light-color);
+        margin-bottom: 10px;
+    }
+
+    .thumbnail-preview .loading,
+    .thumbnail-preview .error {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-size: 1.1em;
+        text-align: center;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .thumbnail-preview .loading i,
+    .thumbnail-preview .error i {
+        font-size: 3em;
+        margin-bottom: 10px;
+        color: var(--primary-color);
+    }
+    .thumbnail-preview .error i {
+        color: var(--error-color);
+    }
+
+    .thumbnail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .action-btn {
+        background-color: var(--secondary-color);
+        color: var(--background-color);
+        border: none;
+        padding: 10px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.95em;
+        transition: background-color 0.3s, transform 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 2px 5px var(--shadow-color);
+    }
+
+    .action-btn:hover:not(:disabled) {
+        background-color: var(--primary-light-color);
+        transform: translateY(-2px);
+    }
+
+    .action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .custom-thumb-upload {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+    }
+
+    .custom-thumb-upload input[type="file"] {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+    }
+
+    .upload-form .btn {
+        width: 100%;
+        margin-top: 25px;
+        padding: 15px;
+        font-size: 1.2em;
+    }
+
+    .upload-instructions {
+        background-color: var(--background-color);
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px var(--shadow-color);
+        color: var(--text-color);
+        margin-top: 30px;
+    }
+
+    .upload-instructions h3 {
+        color: var(--primary-color);
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 1.8em;
+    }
+
+    .upload-instructions ul {
+        list-style: disc;
+        padding-left: 20px;
+        margin: 0;
+    }
+
+    .upload-instructions ul li {
+        margin-bottom: 8px;
+        line-height: 1.6;
+    }
+
+    /* Upload Progress Modal */
+    .upload-progress {
+        display: none; /* Hidden by default */
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        justify-content: center;
+        align-items: center;
+    }
+
+    .progress-container {
+        background-color: var(--light-bg-color);
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 5px 20px var(--hover-shadow-color);
+        text-align: center;
+        width: 90%;
+        max-width: 400px;
+        color: var(--text-color);
+    }
+
+    .progress-container h3 {
+        color: var(--primary-color);
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 1.8em;
+    }
+
+    .progress-bar-container {
+        width: 100%;
+        background-color: var(--input-bg-color);
+        border-radius: 10px;
+        overflow: hidden;
+        height: 25px;
+        margin-bottom: 15px;
+        box-shadow: inset 0 1px 3px var(--shadow-color);
+    }
+
+    .progress-bar {
+        height: 100%;
+        width: 0%;
+        background-color: var(--primary-color);
+        border-radius: 10px;
+        transition: width 0.3s ease-in-out;
+    }
+
+    .progress-percentage {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: var(--accent-text-color);
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .upload-container {
+            padding: 15px;
+            margin: 15px;
+        }
+        .upload-container .header-section h1 {
+            font-size: 2em;
+        }
+        .file-input-container {
+            padding: 20px;
+        }
+        .file-input-container i {
+            font-size: 40px;
+        }
+        .file-input-container p {
+            font-size: 1em;
+        }
+        .thumbnail-preview {
+            max-width: 100%; /* Take full width of parent */
+            height: 160px; /* Adjust height */
+        }
+        .thumbnail-actions {
+            flex-direction: column;
+            align-items: center;
+        }
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 12px 15px;
+        }
+        .upload-form .btn {
+            font-size: 1.1em;
+            padding: 12px;
+        }
+        .upload-instructions h3 {
+            font-size: 1.5em;
+        }
+        .upload-progress .progress-container {
+            padding: 20px;
+        }
+        .progress-container h3 {
+            font-size: 1.5em;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .upload-container {
+            margin: 10px;
+        }
+        .file-info {
+            font-size: 0.9em;
+        }
+        .thumbnail-preview {
+            height: 120px;
+        }
+        .upload-instructions {
+            padding: 20px;
+            font-size: 0.9em;
+        }
+    }
+</style>
 <div class="upload-container">
     <div class="header-section">
         <h1>Upload Video</h1>
@@ -79,6 +420,17 @@
     </div>
 </div>
 
+<!-- Custom Alert Modal -->
+<div id="alertModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal-btn">&times;</span>
+        <p id="alertMessage"></p>
+        <div class="modal-actions">
+            <button id="modalOkBtn" class="btn">OK</button>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('uploadForm');
@@ -98,6 +450,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressPercentage = document.getElementById('progressPercentage');
     
     let currentVideo = null;
+
+    // Custom Alert Modal Logic
+    const alertModal = document.getElementById('alertModal');
+    const alertMessage = document.getElementById('alertMessage');
+    const modalOkBtn = document.getElementById('modalOkBtn');
+    const closeAlertBtn = alertModal.querySelector('.close-modal-btn');
+
+    function showAlert(message) {
+        alertMessage.textContent = message;
+        alertModal.style.display = 'flex'; // Use flex for centering
+    }
+
+    modalOkBtn.onclick = function() {
+        alertModal.style.display = 'none';
+    };
+
+    closeAlertBtn.onclick = function() {
+        alertModal.style.display = 'none';
+    };
+
+    window.onclick = function(event) {
+        if (event.target == alertModal) {
+            alertModal.style.display = 'none';
+        }
+    };
     
     // Handle drag and drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -116,14 +493,6 @@ document.addEventListener('DOMContentLoaded', function() {
     ['dragleave', 'drop'].forEach(eventName => {
         dropArea.addEventListener(eventName, unhighlight, false);
     });
-    
-    function highlight() {
-        dropArea.classList.add('highlight');
-    }
-    
-    function unhighlight() {
-        dropArea.classList.remove('highlight');
-    }
     
     dropArea.addEventListener('drop', handleDrop, false);
     
@@ -150,15 +519,25 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Check file type
         if (!file.type.startsWith('video/mp4')) {
-            fileError.textContent = 'Only MP4 videos are supported';
+            showAlert('Only MP4 videos are supported');
             videoInput.value = '';
+            fileInfo.innerHTML = ''; // Clear file info
+            uploadBtn.disabled = true; // Disable upload button
+            regenerateBtn.disabled = true; // Disable regenerate button
+            thumbnailPreview.innerHTML = '<i class="fas fa-image fa-3x"></i><p>Thumbnail will appear here</p>'; // Reset thumbnail preview
+            thumbnailDataInput.value = ''; // Clear thumbnail data
             return;
         }
         
         // Check file size (1GB)
         if (file.size > 1024 * 1024 * 1024) {
-            fileError.textContent = 'File size exceeds 1GB limit';
+            showAlert('File size exceeds 1GB limit');
             videoInput.value = '';
+            fileInfo.innerHTML = ''; // Clear file info
+            uploadBtn.disabled = true; // Disable upload button
+            regenerateBtn.disabled = true; // Disable regenerate button
+            thumbnailPreview.innerHTML = '<i class="fas fa-image fa-3x"></i><p>Thumbnail will appear here</p>'; // Reset thumbnail preview
+            thumbnailDataInput.value = ''; // Clear thumbnail data
             return;
         }
         
@@ -186,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const file = this.files[0];
             
             if (!file.type.startsWith('image/')) {
-                alert('Please select an image file for the thumbnail');
+                showAlert('Please select an image file for the thumbnail');
                 return;
             }
             
@@ -217,6 +596,8 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.error) {
                 thumbnailPreview.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle"></i><p>${data.error}</p></div>`;
+                showAlert('Error generating thumbnail: ' + data.error);
+                regenerateBtn.disabled = true; // Disable regenerate on error
                 return;
             }
             
@@ -226,7 +607,9 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             thumbnailPreview.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle"></i><p>Error generating thumbnail</p></div>`;
+            showAlert('Error generating thumbnail.');
             console.error('Error:', error);
+            regenerateBtn.disabled = true; // Disable regenerate on fetch error
         });
     }
     
@@ -236,6 +619,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Generate a random position between 10% and 80% of the video
             const randomPos = Math.random() * 0.7 + 0.1;
             generateThumbnail(currentVideo, randomPos.toString());
+        } else {
+            showAlert('Please select a video file first to generate a thumbnail.');
         }
     });
     
@@ -245,17 +630,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Validate required fields
         if (!currentVideo) {
-            alert('Please select a video file');
+            showAlert('Please select a video file');
             return;
         }
         
         if (!titleInput.value.trim()) {
-            alert('Please enter a title for the video');
+            showAlert('Please enter a title for the video');
             return;
         }
         
         if (!thumbnailDataInput.value && !thumbnailInput.files.length) {
-            alert('Please generate or upload a thumbnail');
+            showAlert('Please generate or upload a thumbnail');
             return;
         }
         
@@ -303,27 +688,99 @@ document.addEventListener('DOMContentLoaded', function() {
                     thumbnailDataInput.value = '';
                     
                     // Show success message
-                    alert('Video uploaded successfully!');
+                    showAlert('Video uploaded successfully!');
                 } else {
-                    alert('Error: ' + (response.error || 'Unknown error'));
+                    showAlert('Error: ' + (response.error || 'Unknown error'));
                 }
             } else {
                 try {
                     const response = JSON.parse(xhr.responseText);
-                    alert('Error: ' + (response.error || 'Server error'));
+                    showAlert('Error: ' + (response.error || 'Server error'));
                 } catch (e) {
-                    alert('Error uploading video');
+                    showAlert('Error uploading video');
                 }
             }
         };
         
         xhr.onerror = function() {
             uploadProgress.style.display = 'none';
-            alert('Error uploading video');
+            showAlert('Error uploading video');
         };
         
         xhr.send(formData);
     });
 });
 </script>
+<style>
+    /* Modal Styles (for custom alert/confirm) */
+    .modal {
+        display: none; /* Hidden by default, will be set to 'flex' by JS when needed */
+        position: fixed; /* Stay in place */
+        z-index: 1001; /* Sit on top */
+        left: 0;
+        top: 0;
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        overflow: auto; /* Enable scroll if needed */
+        background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background-color: var(--light-bg-color);
+        margin: auto;
+        padding: 30px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 5px 15px var(--hover-shadow-color);
+        position: relative;
+        text-align: center;
+        color: var(--text-color);
+    }
+
+    .close-modal-btn {
+        color: var(--text-color);
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 30px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.3s;
+    }
+
+    .close-modal-btn:hover,
+    .close-modal-btn:focus {
+        color: var(--primary-color);
+        text-decoration: none;
+    }
+
+    .modal-content p {
+        margin-bottom: 25px;
+        font-size: 1.1em;
+        line-height: 1.5;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .modal-actions .btn {
+        min-width: 120px;
+    }
+
+    .modal-actions .cancel-btn {
+        background-color: #6c757d; /* Grey for cancel */
+    }
+
+    .modal-actions .cancel-btn:hover {
+        background-color: #5a6268;
+    }
+</style>
 {% endblock %}

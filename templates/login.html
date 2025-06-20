@@ -1,5 +1,196 @@
 {% extends "layout.html" %}
 {% block content %}
+<style>
+    /* Login Page Specific Styles */
+    body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background-color: var(--background-color);
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Hide scrollbar if not needed */
+    }
+
+    /* Ensure sidebar and hamburger menu are never visible on login page */
+    .sidebar, .hamburger-menu {
+        display: none !important;
+    }
+
+    .content {
+        /* Override layout.html content styles for login page to remove sidebar margin */
+        margin-left: 0 !important;
+        padding: 0 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100vh;
+    }
+
+    .login-container {
+        display: flex;
+        flex-direction: row;
+        background-color: var(--light-bg-color);
+        border-radius: 15px;
+        box-shadow: 0 10px 30px var(--shadow-color);
+        overflow: hidden;
+        max-width: 900px;
+        width: 90%; /* Responsive width */
+        min-height: 500px;
+    }
+
+    .logo-section {
+        flex: 1;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light-color) 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent-text-color);
+        padding: 30px;
+        text-align: center;
+    }
+
+    .logo-section .logo {
+        margin-bottom: 20px;
+    }
+
+    .logo-section .logo i {
+        font-size: 80px;
+        margin-bottom: 15px;
+        animation: rotateLogo 5s linear infinite; /* Simple animation */
+    }
+
+    .logo-section .logo h1 {
+        font-size: 3em;
+        margin: 0;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .form-section {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+    }
+
+    .login-form {
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .login-form h2 {
+        color: var(--primary-color);
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 2.2em;
+    }
+
+    .login-form .form-group {
+        margin-bottom: 20px;
+    }
+
+    .login-form .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: var(--text-color);
+    }
+
+    .login-form .form-group input[type="text"],
+    .login-form .form-group input[type="password"] {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background-color: var(--input-bg-color);
+        color: var(--text-color);
+        font-size: 16px;
+        box-sizing: border-box; /* Include padding in width */
+    }
+
+    .login-form .form-group input[type="text"]:focus,
+    .login-form .form-group input[type="password"]:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.3);
+    }
+
+    .login-form .btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 1.1em;
+        margin-top: 20px;
+    }
+
+    @keyframes rotateLogo {
+        from {
+            transform: rotateY(0deg);
+        }
+        to {
+            transform: rotateY(360deg);
+        }
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .login-container {
+            flex-direction: column;
+            width: 95%;
+            min-height: auto;
+            max-width: 450px;
+        }
+
+        .logo-section {
+            padding: 20px;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .logo-section .logo i {
+            font-size: 60px;
+        }
+
+        .logo-section .logo h1 {
+            font-size: 2.5em;
+        }
+
+        .form-section {
+            padding: 30px;
+        }
+
+        .login-form h2 {
+            font-size: 2em;
+            margin-bottom: 25px;
+        }
+        
+        body {
+            align-items: flex-start;
+            padding-top: 50px; /* Provide some top space */
+        }
+        
+        .content {
+            height: auto; /* Allow content to dictate height */
+        }
+    }
+
+    @media (max-width: 480px) {
+        .form-section {
+            padding: 20px;
+        }
+        .login-form h2 {
+            font-size: 1.8em;
+        }
+        .login-form .btn {
+            font-size: 1em;
+            padding: 10px;
+        }
+    }
+</style>
 <div class="login-container">
     <div class="logo-section">
         <div class="logo">

@@ -1,6 +1,198 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<style>
+    /* Home Page Specific Styles */
+    .home-container {
+        max-width: 1600px;
+        margin: 20px auto;
+        padding: 0 20px;
+    }
+
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        gap: 20px; /* Space between items */
+    }
+
+    .shuffle-btn {
+        background-color: var(--secondary-color);
+        color: var(--background-color);
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 8px var(--shadow-color);
+    }
+
+    .shuffle-btn:hover {
+        background-color: var(--primary-light-color);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px var(--hover-shadow-color);
+    }
+    
+    /* Specific overrides for video card elements in home.html */
+    .video-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        padding: 20px 0;
+    }
+
+    .video-card {
+        background-color: var(--light-bg-color);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px var(--shadow-color);
+        transition: transform 0.3s, box-shadow 0.3s;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .video-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px var(--hover-shadow-color);
+    }
+
+    .video-card .video-link {
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .video-card .thumbnail-container {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        overflow: hidden;
+    }
+
+    .video-card .video-thumbnail {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* Changed to 'contain' to show full thumbnail */
+        background-color: black; /* Add background for letterboxing/pillarboxing */
+    }
+
+    .video-card .video-duration {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 5px;
+        font-size: 13px;
+    }
+
+    .video-card .video-info {
+        padding: 15px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .video-card .video-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 10px 0;
+        color: var(--accent-text-color);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .video-card .video-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: auto; /* Pushes tags to the bottom */
+    }
+
+    .video-card .video-tags { /* Added or modified for proper tag spacing */
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px; /* Ensure spacing between tags */
+    }
+
+    .video-card .tag {
+        background-color: var(--secondary-color);
+        color: var(--background-color);
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+        white-space: nowrap;
+        transition: background-color 0.3s;
+    }
+
+    .video-card .tag:hover {
+        background-color: var(--primary-light-color);
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .home-container {
+            padding: 0 15px;
+        }
+        .header-section {
+            flex-direction: column;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+        .search-container {
+            width: 100%;
+            max-width: none;
+        }
+        .shuffle-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 12px 20px;
+        }
+        /* Responsive overrides for video card elements */
+        .video-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .video-card .video-title {
+            font-size: 16px;
+        }
+
+        .video-card .video-duration,
+        .video-card .tag {
+            font-size: 12px;
+            padding: 3px 6px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .home-container {
+            padding: 0 10px;
+        }
+        /* Mobile overrides for video card elements */
+        .video-grid {
+            grid-template-columns: 1fr; /* Single column on very small screens */
+            gap: 10px;
+        }
+    }
+</style>
 <div class="home-container">
     <div class="header-section">
         <button class="shuffle-btn"><i class="fas fa-random"></i> Shuffle</button>

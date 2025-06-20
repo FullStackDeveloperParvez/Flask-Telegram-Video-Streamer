@@ -1,6 +1,360 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<style>
+    /* Shorts Page Specific Styles */
+    .shorts-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: calc(100vh - 40px); /* Adjust height to fill viewport minus padding */
+        overflow: hidden; /* Prevent outer scrollbars from appearing */
+        padding: 20px 0;
+        box-sizing: border-box;
+    }
+
+    .shorts-feed {
+        flex-grow: 1;
+        width: 100%;
+        max-width: 500px; /* Max width for the shorts feed */
+        height: 100%;
+        overflow-y: scroll; /* Enable vertical scrolling */
+        scroll-snap-type: y mandatory; /* Snap to each short */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        border-radius: 12px;
+        background-color: var(--light-bg-color);
+        box-shadow: 0 5px 20px var(--shadow-color);
+
+        /* Hide scrollbar for Webkit browsers (Chrome, Safari) */
+        &::-webkit-scrollbar {
+            display: none;
+            width: 0;
+            height: 0;
+        }
+        /* Hide scrollbar for Firefox */
+        scrollbar-width: none;
+        /* Hide scrollbar for IE and Edge */
+        -ms-overflow-style: none;
+    }
+
+    .shorts-item {
+        width: 100%;
+        height: 100%;
+        scroll-snap-align: start;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        background-color: #000; /* Black background for video */
+    }
+
+    .video-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: black;
+    }
+
+    .shorts-video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* Ensure video fits within container, letterboxing if needed */
+        display: block;
+    }
+
+    .video-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 15px; /* Default padding */
+        background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 80%, rgba(0,0,0,0.5) 100%);
+        opacity: 1;
+        transition: opacity 0.3s ease;
+    }
+
+    .shorts-item:hover .video-overlay {
+        opacity: 1;
+    }
+
+    .video-controls {
+        display: flex;
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .play-pause-btn, .volume-btn {
+        background-color: rgba(0, 0, 0, 0.6);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 24px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .play-pause-btn:hover, .volume-btn:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    .shorts-info {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+        color: white;
+        box-sizing: border-box;
+    }
+
+    .shorts-title {
+        font-size: 1.5em;
+        margin-top: 0;
+        margin-bottom: 10px;
+        text-shadow: 1px 1px 3px var(--shadow-color);
+        word-wrap: break-word; /* Ensure long titles wrap */
+    }
+
+    .shorts-actions {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+
+    .action-icon {
+        background-color: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 20px;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.2s;
+        text-decoration: none; /* For the link icon */
+    }
+
+    .action-icon:hover {
+        background-color: var(--primary-color);
+        transform: scale(1.1);
+    }
+
+    .action-icon.favorited {
+        background-color: #ff4757; /* Red for favorited */
+    }
+
+    .shorts-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px; /* Added gap for spacing between tags */
+    }
+
+    .shorts-tags .tag {
+        background-color: rgba(255, 140, 0, 0.7); /* Slightly transparent orange */
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        backdrop-filter: blur(3px);
+        white-space: nowrap; /* Ensures tags don't break mid-word */
+    }
+    
+    .loading-indicator {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-size: 1.2em;
+        opacity: 0; /* Hidden by default */
+        transition: opacity 0.3s ease-in-out;
+        pointer-events: none; /* Allow clicks to pass through */
+    }
+
+    .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid var(--primary-color);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 10px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .shorts-instructions {
+        position: absolute;
+        bottom: 50px; /* Above the shorts-info */
+        color: white;
+        text-align: center;
+        font-size: 1.1em;
+        opacity: 1;
+        transition: opacity 0.5s ease-out;
+        pointer-events: none; /* Allow interaction with elements behind it */
+        z-index: 10;
+    }
+
+    .shorts-instructions .swipe-up {
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 10px 20px;
+        border-radius: 25px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        backdrop-filter: blur(3px);
+    }
+
+    .shorts-instructions .swipe-up i {
+        font-size: 1.5em;
+        animation: bounceUpDown 1.5s infinite;
+    }
+
+    @keyframes bounceUpDown {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .no-shorts {
+        text-align: center;
+        padding: 50px 20px;
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+        background-color: var(--light-bg-color);
+        border-radius: 12px;
+        box-shadow: 0 4px 10px var(--shadow-color);
+        margin: 20px auto;
+        max-width: 600px;
+        height: auto; /* Allow height to adjust */
+    }
+
+    .no-shorts i {
+        font-size: 60px;
+        color: var(--primary-color);
+        margin-bottom: 20px;
+    }
+
+    .no-shorts p {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+    
+    /* Responsive styles */
+    @media (max-width: 768px) {
+        .shorts-container {
+            height: calc(100vh - 60px); /* Adjust for potential header on mobile */
+            padding: 10px 0;
+        }
+
+        .shorts-feed {
+            max-width: 95%;
+            border-radius: 8px;
+        }
+
+        .video-overlay {
+            padding: 10px; /* Reduced padding */
+        }
+
+        .video-controls {
+            padding: 0px; /* Reduced padding to make more space for button */
+        }
+
+        .play-pause-btn, .volume-btn {
+            width: 45px;
+            height: 45px;
+            font-size: 20px;
+        }
+
+        .shorts-title {
+            font-size: 1.3em;
+        }
+
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+        }
+
+        .shorts-tags .tag {
+            font-size: 0.8em;
+            padding: 4px 10px;
+        }
+        
+        .shorts-instructions {
+            bottom: 20px;
+            font-size: 1em;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .shorts-container {
+            padding: 5px 0;
+        }
+        .shorts-feed {
+            border-radius: 5px;
+        }
+        .video-overlay {
+            padding: 8px; /* Further reduced padding */
+        }
+        .play-pause-btn, .volume-btn {
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+        }
+        .shorts-title {
+            font-size: 1.1em;
+        }
+        .shorts-actions {
+            gap: 10px;
+        }
+        .action-icon {
+            width: 35px;
+            height: 35px;
+            font-size: 16px;
+        }
+        .shorts-tags .tag {
+            font-size: 0.75em;
+            padding: 3px 8px;
+        }
+        .shorts-info {
+            padding: 10px;
+        }
+        .shorts-instructions {
+            bottom: 10px;
+            font-size: 0.9em;
+        }
+    }
+</style>
 <div class="shorts-container">
     {% if videos %}
         <div class="shorts-feed" id="shorts-feed">
@@ -15,9 +369,6 @@
                             <div class="video-controls">
                                 <div class="play-pause-btn">
                                     <i class="fas fa-play"></i>
-                                </div>
-                                <div class="volume-btn">
-                                    <i class="fas fa-volume-up"></i>  
                                 </div>
                             </div>
                         </div>
@@ -44,16 +395,27 @@
                         </div>
                         {% if video.tags %}
                             <div class="shorts-tags">
-                                {% for tag in video.tags %}
-                                    {% if tag|trim %}
-                                        <span class="tag">{{ tag|trim }}</span>
-                                    {% endif %}
-                                {% endfor %}
+                                {% if video.tags is string %}
+                                    {# If tags is a comma-separated string, split it #}
+                                    {% for tag in video.tags.split(',') %}
+                                        {% if tag|trim %}
+                                            <span class="tag">{{ tag|trim }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% elif video.tags is iterable %}
+                                    {# If tags is already a list (iterable), iterate directly #}
+                                    {% for tag in video.tags %}
+                                        {% if tag|trim %}
+                                            <span class="tag">{{ tag|trim }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
                             </div>
                         {% endif %}
                     </div>
                     <div class="loading-indicator">
                         <div class="spinner"></div>
+                        <p>Loading...</p> {# Added loading text #}
                     </div>
                 </div>
             {% endfor %}
@@ -84,12 +446,17 @@
         // Video related variables
         let currentVideoIndex = 0;
         let isPlaying = false;
-        let isMuted = false;
+        let isMuted = true; // Initialize to true for autoplay
         let touchStartY = 0;
         let touchEndY = 0;
         let lastWheelTime = 0;
         let wheelLocked = false;
         
+        // Named event handlers for proper removal and clarity
+        let currentVideoElement = null;
+        let currentPlayPauseBtn = null;
+        let currentVolumeBtn = null;
+
         // Hide instructions after 5 seconds
         setTimeout(() => {
             if (instructions) {
@@ -109,10 +476,10 @@
             // Setup scroll event for feed
             shortsFeed.addEventListener('scroll', handleScroll);
             
-            // Setup touch events for swiping
-            shortsFeed.addEventListener('touchstart', handleTouchStart, false);
-            shortsFeed.addEventListener('touchmove', handleTouchMove, false);
-            shortsFeed.addEventListener('touchend', handleTouchEnd, false);
+            // Setup touch events for swiping - changed passive to true for better performance
+            shortsFeed.addEventListener('touchstart', handleTouchStart, { passive: true });
+            shortsFeed.addEventListener('touchmove', handleTouchMove, { passive: true });
+            shortsFeed.addEventListener('touchend', handleTouchEnd, { passive: true });
             
             // For desktop scroll - fixed event handler
             window.addEventListener('wheel', handleWheel, { passive: false });
@@ -130,39 +497,37 @@
             // Show loading indicator
             loadingIndicator.style.opacity = '1';
             
-            // Setup video event listeners
-            video.addEventListener('loadeddata', function() {
-                loadingIndicator.style.opacity = '0';
-                // Auto play when loaded
-                playVideo(video);
-                updatePlayPauseButton(playPauseBtn, true);
-            });
+            // Remove previous listeners to prevent duplicates
+            if (currentVideoElement) {
+                currentVideoElement.removeEventListener('loadeddata', videoLoadedHandler);
+                currentVideoElement.removeEventListener('waiting', videoWaitingHandler);
+                currentVideoElement.removeEventListener('playing', videoPlayingHandler);
+                currentVideoElement.removeEventListener('error', videoErrorHandler);
+                currentVideoElement.removeEventListener('click', videoClickPlayPauseHandler); // Remove old click handler
+            }
+            if (currentPlayPauseBtn) {
+                currentPlayPauseBtn.removeEventListener('click', playPauseClickHandler);
+            }
+            if (currentVolumeBtn) {
+                currentVolumeBtn.removeEventListener('click', volumeClickHandler);
+            }
+
+            // Store current video and its controls for event listeners
+            currentVideoElement = video;
+            currentPlayPauseBtn = playPauseBtn;
+            currentVolumeBtn = volumeBtn;
+
+            // Setup new event listeners with named functions
+            video.addEventListener('loadeddata', videoLoadedHandler);
+            video.addEventListener('waiting', videoWaitingHandler);
+            video.addEventListener('playing', videoPlayingHandler);
+            video.addEventListener('error', videoErrorHandler);
+            video.addEventListener('click', videoClickPlayPauseHandler); // Add click handler to video itself
+            playPauseBtn.addEventListener('click', playPauseClickHandler);
+            volumeBtn.addEventListener('click', volumeClickHandler);
             
-            video.addEventListener('waiting', function() {
-                loadingIndicator.style.opacity = '1';
-            });
-            
-            video.addEventListener('playing', function() {
-                loadingIndicator.style.opacity = '0';
-            });
-            
-            video.addEventListener('error', function(e) {
-                console.error("Video error:", e);
-                loadingIndicator.style.opacity = '0';
-                playPauseBtn.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
-            });
-            
-            // Setup control buttons
-            playPauseBtn.addEventListener('click', function() {
-                togglePlayPause(video, playPauseBtn);
-            });
-            
-            volumeBtn.addEventListener('click', function() {
-                toggleMute(video, volumeBtn);
-            });
-            
-            // Apply mute state
-            video.muted = isMuted;
+            // Apply mute state (initial mute for autoplay)
+            video.muted = isMuted; // Use the global isMuted state
             updateVolumeButton(volumeBtn, isMuted);
             
             // Load the video
@@ -171,19 +536,67 @@
             // Pause all other videos
             pauseAllOtherVideos(index);
         }
+
+        // Named event handlers for proper removal
+        function videoLoadedHandler() {
+            const video = this; // 'this' refers to the video element
+            const loadingIndicator = video.closest('.shorts-item').querySelector('.loading-indicator');
+            const playPauseBtn = video.closest('.shorts-item').querySelector('.play-pause-btn');
+            
+            loadingIndicator.style.opacity = '0';
+            playVideo(video);
+            updatePlayPauseButton(playPauseBtn, true);
+        }
+
+        function videoWaitingHandler() {
+            const video = this;
+            const loadingIndicator = video.closest('.shorts-item').querySelector('.loading-indicator');
+            loadingIndicator.style.opacity = '1';
+        }
+
+        function videoPlayingHandler() {
+            const video = this;
+            const loadingIndicator = video.closest('.shorts-item').querySelector('.loading-indicator');
+            loadingIndicator.style.opacity = '0';
+        }
+
+        function videoErrorHandler(e) {
+            console.error("Video error:", e);
+            const video = this;
+            const loadingIndicator = video.closest('.shorts-item').querySelector('.loading-indicator');
+            const playPauseBtn = video.closest('.shorts-item').querySelector('.play-pause-btn');
+            loadingIndicator.style.opacity = '0';
+            playPauseBtn.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+        }
+
+        function playPauseClickHandler() {
+            const video = this.closest('.shorts-item').querySelector('.shorts-video');
+            const playPauseBtn = this;
+            togglePlayPause(video, playPauseBtn);
+        }
+        
+        // New: Click on video to play/pause
+        function videoClickPlayPauseHandler() {
+            const video = this;
+            const playPauseBtn = video.closest('.shorts-item').querySelector('.play-pause-btn');
+            togglePlayPause(video, playPauseBtn);
+        }
+
+        function volumeClickHandler() {
+            const video = this.closest('.shorts-item').querySelector('.shorts-video');
+            const volumeBtn = this;
+            toggleMute(video, volumeBtn);
+        }
         
         function playVideo(video) {
-            console.log("Attempting to play video");
             const playPromise = video.play();
             
             if (playPromise !== undefined) {
                 playPromise.then(_ => {
-                    console.log("Video playing successfully");
                     isPlaying = true;
                 }).catch(error => {
                     console.error("Auto-play prevented:", error);
                     isPlaying = false;
-                    // Show play button when autoplay fails
                     const playPauseBtn = video.closest('.shorts-item').querySelector('.play-pause-btn');
                     updatePlayPauseButton(playPauseBtn, false);
                 });
@@ -242,26 +655,29 @@
         }
         
         function handleScroll() {
-            // Find which video is most visible in the viewport
-            let maxVisibleArea = 0;
-            let maxVisibleIndex = currentVideoIndex;
-            
-            shortsItems.forEach((item, index) => {
-                const rect = item.getBoundingClientRect();
-                const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
-                const visibleArea = Math.max(0, visibleHeight / item.offsetHeight);
+            // Debounce the scroll event
+            clearTimeout(shortsFeed.scrollTimeout);
+            shortsFeed.scrollTimeout = setTimeout(() => {
+                let maxVisibleArea = 0;
+                let maxVisibleIndex = currentVideoIndex;
                 
-                if (visibleArea > maxVisibleArea) {
-                    maxVisibleArea = visibleArea;
-                    maxVisibleIndex = index;
+                shortsItems.forEach((item, index) => {
+                    const rect = item.getBoundingClientRect();
+                    // Calculate visible height, clamp to viewport
+                    const visibleHeight = Math.min(rect.bottom, shortsFeed.clientHeight) - Math.max(rect.top, 0);
+                    const visibleArea = Math.max(0, visibleHeight / item.offsetHeight);
+                    
+                    if (visibleArea > maxVisibleArea) {
+                        maxVisibleArea = visibleArea;
+                        maxVisibleIndex = index;
+                    }
+                });
+                
+                if (maxVisibleIndex !== currentVideoIndex) {
+                    currentVideoIndex = maxVisibleIndex;
+                    setupVideo(currentVideoIndex);
                 }
-            });
-            
-            // If the most visible video has changed
-            if (maxVisibleIndex !== currentVideoIndex) {
-                currentVideoIndex = maxVisibleIndex;
-                setupVideo(currentVideoIndex);
-            }
+            }, 100); // Adjust debounce time as needed
         }
         
         function handleTouchStart(event) {
@@ -274,7 +690,7 @@
         
         function handleTouchEnd() {
             const diffY = touchStartY - touchEndY;
-            const threshold = 100; // Minimum distance for swipe detection
+            const threshold = 50; // Minimum distance for swipe detection
             
             if (Math.abs(diffY) > threshold) {
                 if (diffY > 0) {
@@ -292,19 +708,17 @@
         }
         
         function handleWheel(event) {
-            // Prevent default scrolling behavior
+            // Prevent default scrolling behavior for the entire window
             event.preventDefault();
             
-            // Implement debouncing to prevent rapid scrolling
             const now = Date.now();
-            if (wheelLocked) return;
-            
-            // Lock wheel events for a short period
+            if (wheelLocked && (now - lastWheelTime < 500)) { // 500ms cooldown
+                return;
+            }
+            lastWheelTime = now;
             wheelLocked = true;
-            setTimeout(() => {
-                wheelLocked = false;
-            }, 500); // 500ms cooldown between wheel actions
-            
+            setTimeout(() => { wheelLocked = false; }, 500);
+
             if (event.deltaY > 0) {
                 // Scroll down - go to next video
                 if (currentVideoIndex < shortsItems.length - 1) {
@@ -336,7 +750,7 @@
                 const video = currentItem.querySelector('.shorts-video');
                 const playPauseBtn = currentItem.querySelector('.play-pause-btn');
                 togglePlayPause(video, playPauseBtn);
-                event.preventDefault();
+                event.preventDefault(); // Prevent page scrolling
             } else if (event.key === 'm') {
                 // M - toggle mute
                 const currentItem = shortsItems[currentVideoIndex];

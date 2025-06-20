@@ -4,12 +4,546 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telegram Media Player</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* General Styles */
+        :root {
+            --primary-color: #FF8C00; /* Darker Orange */
+            --primary-light-color: #FFA726; /* Lighter Orange */
+            --secondary-color: #FFD180; /* Pale Orange */
+            --background-color: #1a1a1a; /* Dark background */
+            --light-bg-color: #2a2a2a; /* Slightly lighter dark background */
+            --text-color: #e0e0e0; /* Light grey text */
+            --accent-text-color: #ffffff; /* White text for contrast */
+            --border-color: #444; /* Darker border */
+            --input-bg-color: #3a3a3a; /* Dark input background */
+            --error-color: #dc3545; /* Red for errors */
+            --success-color: #28a745; /* Green for success */
+            --info-color: #17a2b8; /* Blue for info */
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --hover-shadow-color: rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background-color: var(--light-bg-color);
+            padding: 20px;
+            box-shadow: 2px 0 5px var(--shadow-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 999;
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(0); /* Visible by default on desktop */
+        }
+        
+        .sidebar.active {
+            transform: translateX(0); /* Always visible when active (mobile override) */
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h2 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar nav ul li {
+            margin-bottom: 15px;
+        }
+
+        .sidebar nav ul li a {
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            border-radius: 8px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .sidebar nav ul li a i {
+            margin-right: 15px;
+            font-size: 20px;
+            color: var(--primary-light-color);
+        }
+
+        .sidebar nav ul li a:hover,
+        .sidebar nav ul li a.active {
+            background-color: var(--primary-color);
+            color: var(--accent-text-color);
+        }
+        
+        .sidebar nav ul li a:hover i,
+        .sidebar nav ul li a.active i {
+            color: var(--accent-text-color);
+        }
+
+        /* Main Content Styles */
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+            margin-left: 290px; /* Space for fixed sidebar on desktop */
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        /* Flash Messages */
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+
+        .alert-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .alert-danger {
+            background-color: var(--error-color);
+            color: white;
+        }
+
+        .alert-info {
+            background-color: var(--info-color);
+            color: white;
+        }
+
+        .close-btn {
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            margin-left: 10px;
+        }
+        
+        /* Hamburger Menu Icon */
+        .hamburger-menu {
+            display: none; /* Hidden by default on desktop */
+            font-size: 28px;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 10px;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: var(--light-bg-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .hamburger-menu:hover {
+            background-color: var(--primary-light-color);
+            transform: translateY(-2px);
+        }
+
+        /* General UI Components */
+        .btn {
+            background-color: var(--primary-color);
+            color: var(--accent-text-color);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 8px var(--shadow-color);
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-light-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px var(--hover-shadow-color);
+        }
+
+        .search-container {
+            display: flex;
+            border-radius: 25px;
+            overflow: hidden;
+            background-color: var(--input-bg-color);
+            border: 1px solid var(--border-color);
+            box-shadow: inset 0 1px 3px var(--shadow-color);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .search-container input {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: none;
+            background-color: transparent;
+            color: var(--text-color);
+            font-size: 16px;
+            outline: none;
+        }
+
+        .search-container input::placeholder {
+            color: #bbb;
+        }
+
+        .search-container button {
+            background-color: var(--primary-color);
+            color: var(--accent-text-color);
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .search-container button:hover {
+            background-color: var(--primary-light-color);
+        }
+
+        /* Video Card Grid */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .video-card {
+            background-color: var(--light-bg-color);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px var(--shadow-color);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px var(--hover-shadow-color);
+        }
+
+        .video-card .video-link {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .video-card .thumbnail-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            overflow: hidden;
+        }
+
+        .video-card .video-thumbnail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-card .video-duration {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .video-card .video-info {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .video-card .video-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 10px 0;
+            color: var(--accent-text-color);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .video-card .video-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: auto; /* Pushes tags to the bottom */
+        }
+
+        .video-card .tag {
+            background-color: var(--secondary-color);
+            color: var(--background-color);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: background-color 0.3s;
+        }
+
+        .video-card .tag:hover {
+            background-color: var(--primary-light-color);
+        }
+
+        /* No Videos/No Results Message */
+        .no-videos, .no-results {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            background-color: var(--light-bg-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 10px var(--shadow-color);
+            margin: 20px auto;
+            max-width: 600px;
+        }
+
+        .no-videos i, .no-results i {
+            font-size: 60px;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .no-videos p, .no-results p {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 30px;
+            padding: 20px;
+            gap: 10px;
+            background-color: var(--light-bg-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 10px var(--shadow-color);
+        }
+
+        .pagination .page-link,
+        .pagination .current-page {
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-color);
+            background-color: var(--input-bg-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .pagination .page-link:hover {
+            background-color: var(--primary-light-color);
+            color: var(--accent-text-color);
+        }
+
+        .pagination .current-page {
+            background-color: var(--primary-color);
+            color: var(--accent-text-color);
+            font-weight: bold;
+            cursor: default;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--input-bg-color);
+            color: var(--text-color);
+            font-size: 16px;
+            box-sizing: border-box; /* Include padding in width */
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="password"]:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.3);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+        }
+
+        .form-group.checkbox {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .form-group.checkbox input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            transform: scale(1.2);
+            accent-color: var(--primary-color);
+        }
+
+        .form-group.checkbox label {
+            margin-bottom: 0;
+        }
+        
+        .error-message {
+            color: var(--error-color);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 200px;
+                padding: 15px;
+                transform: translateX(-100%); /* Hidden by default on mobile */
+            }
+            
+            .sidebar.active {
+                transform: translateX(0); /* Visible when active on mobile */
+            }
+
+            .sidebar nav ul li a {
+                font-size: 16px;
+                padding: 8px 10px;
+            }
+
+            .sidebar nav ul li a i {
+                margin-right: 10px;
+                font-size: 18px;
+            }
+
+            .content {
+                margin-left: 0; /* Always full width on mobile */
+                padding-top: 70px; /* Make space for hamburger menu */
+            }
+            
+            .hamburger-menu {
+                display: block; /* Show hamburger menu on mobile */
+            }
+            
+            .video-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 15px;
+            }
+            
+            .video-card .video-title {
+                font-size: 16px;
+            }
+
+            .video-card .video-duration,
+            .video-card .tag {
+                font-size: 12px;
+                padding: 3px 6px;
+            }
+
+            .pagination {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .pagination .page-link,
+            .pagination .current-page {
+                padding: 8px 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .content {
+                padding: 15px;
+                padding-top: 60px;
+            }
+            
+            .search-container {
+                max-width: 100%;
+            }
+            
+            .hamburger-menu {
+                font-size: 24px;
+                padding: 8px;
+            }
+            
+            .video-grid {
+                grid-template-columns: 1fr; /* Single column on very small screens */
+                gap: 10px;
+            }
+        }
+    </style>
 </head>
 <body>
     {% if session.get('user_id') %}
-    <div class="sidebar">
+    <div class="hamburger-menu" id="hamburgerMenu">
+        <i class="fas fa-bars"></i>
+    </div>
+    <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>Menu</h2>
         </div>
@@ -28,7 +562,7 @@
     </div>
     {% endif %}
     
-    <div class="content {% if session.get('user_id') %}with-sidebar{% endif %}">
+    <div class="content {% if session.get('user_id') %}with-sidebar{% endif %}" id="mainContent">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -52,6 +586,42 @@
                     alert.style.display = 'none';
                 });
             }, 5000);
+
+            // Sidebar toggle logic
+            const hamburgerMenu = document.getElementById('hamburgerMenu');
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const isMobile = window.innerWidth <= 768; // Check if on mobile screen size
+
+            if (hamburgerMenu && sidebar && mainContent) {
+                // Initial setup for desktop view if user is logged in
+                if (!isMobile && '{{ session.get("user_id") }}' === 'True') {
+                    sidebar.style.transform = 'translateX(0)'; // Ensure sidebar is visible on desktop
+                }
+
+                hamburgerMenu.addEventListener('click', function() {
+                    sidebar.classList.toggle('active');
+                    if (sidebar.classList.contains('active')) {
+                        // Apply blur and prevent body scroll only on mobile when sidebar is an overlay
+                        if (isMobile) {
+                            mainContent.style.filter = 'blur(2px)';
+                            document.body.style.overflow = 'hidden';
+                        }
+                    } else {
+                        mainContent.style.filter = 'none';
+                        document.body.style.overflow = '';
+                    }
+                });
+
+                // Close sidebar when clicking outside on mobile (overlay behavior)
+                mainContent.addEventListener('click', function(event) {
+                    if (isMobile && sidebar.classList.contains('active') && !sidebar.contains(event.target) && !hamburgerMenu.contains(event.target)) {
+                        sidebar.classList.remove('active');
+                        mainContent.style.filter = 'none';
+                        document.body.style.overflow = '';
+                    }
+                });
+            }
         });
     </script>
 </body>
